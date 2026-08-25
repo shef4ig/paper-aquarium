@@ -465,7 +465,31 @@
     applyBoost();   // страховка: rAF мог не успеть — уходит то, что на ползунке
     document.getElementById('busy-text').textContent = I18N.t('cap.sending');
     show('s-busy');
-    return fetch(Tank.api + '/fish', {
+    
+    var isRoomMode = location.search.indexOf('mode=room') !== -1;
+    if (isRoomMode) {
+      document.getElementById('busy-text').textContent = 'Сохраняем комнату...';
+      return fetch(Tank.api + '/backgrounds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: result.boost ? result.boost.bake().texture : result.texture })
+      }).then(function(r) { return r.json(); }).then(function(res) {
+        return fetch(Tank.api + '/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ background: res.name })
+        });
+      }).then(function () {
+        if (window.parent && window.parent !== window) {
+           window.parent.postMessage({ aqua: 'fish-added' }, '*');
+        } else {
+           location.href = '/t/' + Tank.id;
+        }
+      }).catch(function(e) {
+        console.error(e);
+      });
+    }
+return fetch(Tank.api + '/fish', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // текстура запекается с текущим положением ползунка — в аквариум

@@ -1,0 +1,2033 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-t="tank.doctitle">Аквариум</title>
+<link rel="stylesheet" href="/assets/ui.css">
+<style>
+  body { background: #101013; }
+  .loading { position: fixed; inset: 0; display: grid; place-content: center; color: var(--muted); z-index: 30; }
+
+  /* -- меню аквариума -----------------------------------------------------
+     Поверх сцены не висит ничего, кроме еле заметной подсказки: аквариум
+     смотрят, а не разглядывают кнопки. Всё управление появляется по клику. */
+  .menu {
+    position: fixed; inset: 0; z-index: 15;
+    display: grid; place-items: center; padding: 16px;
+    background: rgba(2, 10, 18, 0.55);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    animation: menu-fade 0.16s ease-out;
+  }
+  .menu[hidden] { display: none; }
+  @keyframes menu-fade { from { opacity: 0 } to { opacity: 1 } }
+
+  .menu .card {
+    position: relative;
+    width: min(420px, 100%); max-height: 100%; overflow: auto;
+    background: rgba(6, 22, 38, 0.94);
+    border: 1px solid var(--line); border-radius: 20px;
+    padding: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+    animation: menu-rise 0.18s ease-out;
+  }
+  @keyframes menu-rise { from { transform: translateY(14px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+  .menu h2 { margin: 0; padding-right: 40px; font-size: 19px; font-weight: 600; }
+  /* Имя аквариума правят прямо здесь: карандаш подсказывает, что заголовок
+     можно нажать, — иначе о такой возможности никто не догадается. */
+  .menu .rename {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin: 0; padding: 0; font: inherit; color: inherit; text-align: left;
+    background: none; border: 0; cursor: pointer;
+  }
+  .menu .rename .pen { font-size: 13px; opacity: .45; transition: opacity .15s; }
+  .menu .rename:hover { color: var(--accent); }
+  .menu .rename:hover .pen { opacity: 1; }
+  /* В витрине имя не правят: кнопка остаётся заголовком, но не зовёт нажать. */
+  .menu .rename[disabled] { cursor: default; }
+  .menu .rename[disabled]:hover { color: inherit; }
+  .menu .who { margin: 4px 0 14px; font-size: 12px; color: var(--muted); }
+  /* Код — он же приглашение: нажатие копирует ссылку на аквариум, чтобы
+     открыть его на телефоне или отправить бабушке. */
+  .menu .who .code {
+    font: 12px/1 "Segoe UI", system-ui, sans-serif;
+    color: var(--muted); background: rgba(88, 214, 255, 0.1);
+    border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .menu .who .code b {
+    font: 12px/1 ui-monospace, Consolas, monospace; letter-spacing: 1px;
+    font-weight: 600; color: var(--accent);
+  }
+  .menu .who .code:hover { background: rgba(88, 214, 255, 0.2); border-color: rgba(140, 200, 255, 0.45); color: var(--ink); }
+  .menu .who .code + .code { margin-left: 6px; }
+  /* Аквариум без пароля: управлять им может любой со ссылкой — предупреждаем. */
+  .menu .who .code.warn {
+    color: #ffce7a; background: rgba(255, 190, 90, 0.12); border-color: rgba(255, 190, 90, 0.35);
+  }
+
+  /* Пустой аквариум — самый частый первый экран, поэтому он объясняет
+     весь путь целиком, а не просто сообщает, что рыбок нет. */
+  .menu .steps {
+    margin: 0 0 14px; padding: 12px 14px; font-size: 13px; line-height: 1.6;
+    background: rgba(88, 214, 255, 0.07);
+    border: 1px solid var(--line); border-radius: 14px;
+  }
+  .menu .steps b { display: block; margin-bottom: 4px; }
+  .menu .steps span { color: var(--muted); }
+
+  /* QR — мостик на телефон. Белая подложка обязательна: на тёмной карточке
+     без неё сканеру телефона не хватает контраста, и код просто не читается. */
+  .menu .qrbox {
+    flex: none; display: inline-block; line-height: 0;
+    background: #fff; border-radius: 10px; padding: 8px;
+  }
+  .menu .qrbox svg { display: block; width: 104px; height: 104px; }
+
+  /* «Открыть на другом экране»: QR крупнее, чем в шагах, — его наводят
+     с расстояния вытянутой руки, а то и через всю комнату с дивана. */
+  .menu .share .qrwrap { display: grid; place-items: center; gap: 10px; margin: 14px 0 16px; }
+  .menu .share .qrwrap .qrbox svg { width: 168px; height: 168px; }
+  .menu .share .qrhint { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* Пин для телевизора: цифры крупные — их читают через комнату, с дивана. */
+  .menu .share .pinbox {
+    margin: 2px 0 10px; padding: 14px 16px 12px; text-align: center;
+    background: rgba(88, 214, 255, 0.07);
+    border: 1px solid var(--line); border-radius: 14px;
+  }
+  .menu .share .pin {
+    font: 600 40px/1.1 ui-monospace, Consolas, monospace;
+    letter-spacing: 10px; text-indent: 10px; color: var(--accent);
+  }
+  .menu .share .pinhint { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+
+  .menu .item {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; margin-bottom: 8px; padding: 11px 14px;
+    font: inherit; text-align: left; text-decoration: none; cursor: pointer;
+    color: var(--ink); background: rgba(88, 214, 255, 0.08);
+    border: 1px solid var(--line); border-radius: 14px;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  /* display: flex сильнее браузерного [hidden] — прячем явно, иначе пункты,
+     скрытые скриптом (витрина, пустой аквариум), остаются на месте. */
+  .menu .item[hidden] { display: none; }
+  .menu .item:hover { background: rgba(88, 214, 255, 0.18); border-color: rgba(140, 200, 255, 0.45); }
+  .menu .item:active { transform: translateY(1px); }
+  .menu .item.main { background: var(--accent); border-color: var(--accent); color: #04101c; }
+  .menu .item.main:hover { background: #7ce0ff; }
+  .menu .item .ico { flex: none; width: 26px; font-size: 21px; line-height: 1; text-align: center; }
+  .menu .item b { display: block; font-size: 14px; font-weight: 600; }
+  .menu .item i { display: block; font-style: normal; font-size: 12px; opacity: 0.72; }
+
+  /* Выбор покупной рыбки: тот же список, что раньше жил в админке, только
+     теперь он рядом с аквариумом — видно, кого добавляешь и к кому. */
+  /* В наборе 28 рыб — узкая карточка меню превратила бы их в длинный столбик. */
+  .menu .card.wide { width: min(640px, 100%); }
+
+  .menu .goback {
+    display: block; margin: 0 0 12px; padding: 0; font: inherit; font-size: 13px;
+    color: var(--muted); background: none; border: 0; cursor: pointer;
+  }
+  .menu .goback:hover { color: var(--accent); }
+  .menu .capframe {
+    display: block; width: 100%; height: min(70vh, 620px);
+    border: 0; border-radius: 14px; background: transparent;
+  }
+
+  .menu .packgrid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 8px;
+  }
+  .menu .packitem {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 6px 6px 8px; font: inherit; cursor: pointer; color: var(--ink);
+    background: rgba(88, 214, 255, 0.06);
+    border: 1px solid var(--line); border-radius: 12px;
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .menu .packitem:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .menu .packitem img, .menu .packitem .ph {
+    width: 100%; aspect-ratio: 116 / 74; border-radius: 8px; display: block;
+    object-fit: contain; background: #0a2233;
+  }
+  .menu .packitem .ph { display: grid; place-content: center; font-size: 10px; color: var(--muted); }
+  .menu .packitem .t { font-size: 11px; line-height: 1.25; color: var(--muted); text-align: center; }
+  .menu .packitem[disabled] { opacity: 0.5; cursor: default; }
+
+  .menu .langrow { display: flex; justify-content: center; margin-top: 12px; }
+  .menu .langpick { display: inline-flex; gap: 4px; }
+  .menu .langpick button {
+    appearance: none; cursor: pointer; font: inherit; font-size: 11.5px; letter-spacing: .5px;
+    padding: 4px 10px; border-radius: 8px; border: 1px solid transparent;
+    background: transparent; color: var(--muted);
+    transition: color .15s, background .15s, border-color .15s;
+  }
+  .menu .langpick button:hover { color: var(--ink); }
+  .menu .langpick button[aria-pressed="true"] {
+    color: var(--accent); border-color: var(--line); background: rgba(88, 214, 255, 0.1);
+  }
+
+  /* Закрыть меню можно и нажатием мимо карточки, но на такое надо
+     догадаться — крестик виден сразу и не занимает целую строку. */
+  .menu .x {
+    position: absolute; top: 14px; right: 14px;
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    display: grid; place-content: center;
+    font: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+    color: var(--muted); background: rgba(88, 214, 255, 0.08);
+    border: 1px solid var(--line);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .menu .x:hover { color: var(--ink); background: rgba(88, 214, 255, 0.2); border-color: rgba(140, 200, 255, 0.45); }
+
+  /* Пока сцена не запущена, «Наполняю аквариум…» и не показываем. */
+  .loading[hidden] { display: none; }
+
+  /* Подсказка живёт до первого открытия меню: дальше человек уже знает. */
+  .taphint {
+    position: fixed; z-index: 6; left: 50%; bottom: 20px; transform: translateX(-50%);
+    padding: 8px 16px; font-size: 12px; white-space: nowrap; pointer-events: none;
+    color: var(--muted); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 999px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    animation: taphint-pulse 2.6s ease-in-out infinite;
+  }
+  .taphint[hidden] { display: none; }
+  @keyframes taphint-pulse { 0%, 100% { opacity: 0.5 } 50% { opacity: 1 } }
+</style>
+</head>
+<body>
+
+<!-- Сцена занимает весь экран, кнопок поверх неё нет: управление живёт
+     в меню по клику, а настройки — в admin.html. -->
+<div class="loading" id="loading" data-t="tank.loading"></div>
+
+<div class="menu" id="menu" hidden>
+  <div class="card" id="menu-card">
+    <button class="x" id="m-close" type="button" data-t-title="menu.close" aria-label="?">?</button>
+
+    <div id="menu-main">
+      <h2><button class="rename" id="m-rename" type="button" data-t-title="menu.rename.hint">
+        <span id="m-name">Аквариум</span><span class="pen">??</span>
+      </button></h2>
+      <p class="who"><span id="m-count">…</span> ·
+        <button class="code" id="m-key" type="button" data-t-title="menu.pass.title"></button>
+      </p>
+
+      <!-- Витрина (?demo): гость смотрит общий аквариум, и снимать сюда своих
+           рыбок не должен — меню сведено к корму и «заведи свой». -->
+      <div class="steps" id="m-demo" hidden>
+        <b data-t="demo.title"></b>
+        <span data-t="demo.text"></span>
+      </div>
+      <a class="item main" id="m-own" href="/" hidden>
+        <span class="ico">??</span>
+        <span><b data-t="demo.own"></b><i data-t="demo.own.sub"></i></span>
+      </a>
+
+      <button class="item main" id="m-capture" type="button">
+        <span class="ico">??</span>
+        <span><b data-t="menu.capture.title"></b><i data-t="menu.capture.sub"></i></span>
+      </button>
+      <button class="item main" id="m-capture-room" type="button"><span class="ico">🏠</span><span><b>Отсканировать комнату</b><i>Сфотографируй расставленный декор</i></span></button>
+      <button class="item" id="m-pack" type="button">
+        <span class="ico">??</span>
+        <span><b data-t="menu.pack.title"></b><i data-t="menu.pack.sub"></i></span>
+      </button>
+      <button class="item" id="m-feed" type="button">
+        <span class="ico">??</span>
+        <span><b data-t="menu.feed.title"></b><i data-t="menu.feed.sub"></i></span>
+      </button>
+      <button class="item" id="m-print" type="button">
+        <span class="ico">???</span>
+        <span><b data-t="menu.print.title"></b><i data-t="menu.print.sub"></i></span>
+      </button>
+      <button class="item" id="m-bg" type="button">
+        <span class="ico">???</span>
+        <span><b data-t="menu.bg.title"></b><i data-t="menu.bg.sub"></i></span>
+      </button>
+      <button class="item" id="m-fish" type="button">
+        <span class="ico">???</span>
+        <span><b data-t="menu.fish.title"></b><i data-t="menu.fish.sub"></i></span>
+      </button>
+      <button class="item" id="m-share" type="button">
+        <span class="ico">??</span>
+        <span><b data-t="menu.share.title"></b><i data-t="menu.share.sub"></i></span>
+      </button>
+      <a class="item" id="m-home" href="/">
+        <span class="ico">??</span>
+        <span><b data-t="menu.home.title"></b><i data-t="menu.home.sub"></i></span>
+      </a>
+
+      <div class="langrow"><span id="lang"></span></div>
+    </div>
+
+    <div id="menu-print" hidden>
+      <button class="goback" id="m-printback" type="button" data-t="menu.back"></button>
+      <iframe class="capframe" id="printframe" data-t-title="tank.frame.print"></iframe>
+    </div>
+
+    <div id="menu-bg" hidden>
+      <button class="goback" id="m-bgback" type="button" data-t="menu.back"></button>
+      <iframe class="capframe" id="bgframe" data-t-title="tank.frame.bg"></iframe>
+    </div>
+
+    <div id="menu-fish" hidden>
+      <button class="goback" id="m-fishback" type="button" data-t="menu.back"></button>
+      <iframe class="capframe" id="fishframe" data-t-title="tank.frame.fish"></iframe>
+    </div>
+
+    <div id="menu-capture" hidden>
+      <button class="goback" id="m-capback" type="button" data-t="menu.back"></button>
+      <!-- Страница съёмки одна на всех: и по адресу /t/<id>/capture с телефона,
+           и здесь, во врезке. Дублировать её разбор фото и превью в сцене
+           было бы вторым таким же кодом, который начнёт расходиться. -->
+      <iframe class="capframe" id="capframe" data-t-title="tank.frame.capture"></iframe>
+    </div>
+
+    <div id="menu-pack" hidden>
+      <button class="goback" id="m-packback" type="button" data-t="menu.back"></button>
+      <h2 data-t="menu.picker.title"></h2>
+      <p class="who" data-t="menu.picker.sub"></p>
+      <div class="packgrid" id="packgrid"></div>
+    </div>
+
+    <div id="menu-share" class="share" hidden>
+      <button class="goback" id="m-shareback" type="button" data-t="menu.back"></button>
+      <h2 data-t="menu.share.title"></h2>
+      <div class="qrwrap">
+        <span class="qrbox" id="share-qr"></span>
+        <p class="qrhint" data-t="menu.share.hint"></p>
+      </div>
+      <button class="item" id="m-copylink" type="button">
+        <span class="ico">??</span>
+        <span><b data-t="menu.share.copy"></b><i data-t="menu.share.copy.sub"></i></span>
+      </button>
+      <button class="item" id="m-sendlink" type="button" hidden>
+        <span class="ico">??</span>
+        <span><b data-t="menu.share.send"></b><i data-t="menu.share.send.sub"></i></span>
+      </button>
+      <button class="item" id="m-tvpin" type="button">
+        <span class="ico">??</span>
+        <span><b data-t="menu.share.pin"></b><i data-t="menu.share.pin.sub"></i></span>
+      </button>
+      <div class="pinbox" id="pinbox" hidden>
+        <div class="pin" id="pin-digits"></div>
+        <p class="pinhint" data-t="menu.share.pin.text"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="taphint" id="taphint" data-t="menu.hint" hidden></div>
+
+<!-- Пути абсолютные: страница отдаётся и по /t/<id>, и по своему файловому
+     адресу, относительные ссылки сломались бы на первом же. -->
+<script src="/vendor/three.min.js"></script>
+<script src="/vendor/RoomEnvironment.js"></script>
+<script src="/vendor/GLTFLoader.js"></script>
+<script src="/vendor/DRACOLoader.js"></script>
+<script src="/vendor/SkeletonUtils.js"></script>
+<script src="/assets/i18n.js?v=2"></script>
+<script src="/vendor/qr.js"></script>
+<script src="/assets/fish-frame.js"></script>
+<script src="/assets/fish-thumbs.js"></script>
+<script src="/assets/modal.js"></script>
+<script src="/assets/tank.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // Сцена без аквариума бессмысленна: рыбки живут внутри конкретного.
+  // Такое бывает, если открыть файл напрямую, минуя /t/<id>.
+  if (!Tank.id) {
+    document.getElementById('loading').innerHTML =
+      I18N.t('tank.nopick') + ' <a href="/" style="color:#58d6ff">' + I18N.t('tank.home') + '</a>';
+    return;
+  }
+
+  // ?pack — смотрины купленного пака поверх обычного аквариума
+  var PACK = new URLSearchParams(location.search).has('pack');
+
+  // Объём, в котором живут рыбки. Пол плоский и невидимый: он нужен только
+  // затем, чтобы рыбы не ныряли ниже кадра, а корм было куда оседать.
+  //
+  // Глубина растёт ТОЛЬКО вдаль от зрителя: ближняя граница осталась на месте,
+  // дальняя ушла втрое дальше от неё. Двигать переднюю стенку к камере нельзя —
+  // рыба вплотную к объективу превращается в размытое пятно во весь экран.
+  var Z_NEAR = 6, Z_FAR = -18;      // было -6 … +6, стало -18 … +6 — вдвое глубже
+  var FLOOR = 0;
+  // Высота, на которой каустика на рыбе гаснет: чем выше от пола, тем свет
+  // рассеяннее. К границам объёма отношения не имеет, это только для шейдера.
+  var LIT_DEPTH = 12.4;
+
+  // Отступ, с которого рыбу начинает отталкивать от стенки, и запас у пола.
+  // Держим здесь, чтобы отладочная рамка рисовалась ровно по тем же числам,
+  // по которым считается плавание.
+  // Сколько взмахов хвостом приходится на корпус пройденного пути. У живых
+  // рыб это около единицы; меньше — рыба «скользит», больше — суетится.
+  var BEATS_PER_LENGTH = 0.85;
+
+  var MARGIN = 1.6;
+  var FLOOR_ROOM = 0.9;    // насколько выше пола разворачивает вверх
+
+  // Ракурс зашит: «фронтально вплотную». Камера не крутится.
+  var CAM_POS = [0, 6.5, 17.5], CAM_TARGET = [0, 6.5, 0];
+
+  // Объём повторяет пирамиду обзора, а не коробку.
+  //
+  // Прямоугольный объём плохо ложится на перспективу: у ближней стенки он
+  // шире кадра — рыба уплывает вбок и пропадает; у дальней, наоборот, вдвое
+  // уже видимой области — дальние рыбы жмутся к центру экрана. Поэтому
+  // допустимая ширина и высота считаются от расстояния до камеры.
+  //
+  // Объём совпадает с кадром ровно: границы проходят по краям экрана, полос
+  // по бокам нет. За то, чтобы рыба не торчала за край наполовину, отвечает
+  // не запас в объёме, а её собственный радиус — он вычитается на каждую рыбу
+  // отдельно, потому что клоун и скалярия занимают разное место.
+  var FOV = 42;
+  var TAN_HALF_FOV = Math.tan(FOV / 2 * Math.PI / 180);
+
+  // Границы объёма на заданной глубине.
+  //
+  // Объём шире кадра ровно на MARGIN — на отступ, с которого начинается
+  // разворот. Тогда рубеж разворота ложится точно на кромку экрана: рыба
+  // идёт к краю, разворачивается у самой кромки и успевает высунуться за
+  // неё туловищем. Аквариум читается как окно в риф побольше, а не как
+  // коробка, у стенок которой все аккуратно отворачивают.
+  function limitsAt(z) {
+    var d = CAM_POS[2] - z;
+    var half = d * TAN_HALF_FOV;
+    var aspect = camera ? camera.aspect : innerWidth / innerHeight;
+    var yc = CAM_TARGET[1];
+    return {
+      hw: half * aspect + MARGIN,
+      yTop: yc + half + MARGIN,
+      // Пол — жёсткий: ниже него корму некуда оседать.
+      yBot: Math.max(FLOOR + FLOOR_ROOM, yc - half - MARGIN)
+    };
+  }
+
+  // Кромка кадра без надбавки — нужна отладочной рамке и разбросу корма.
+  function frameAt(z) {
+    var d = CAM_POS[2] - z;
+    var half = d * TAN_HALF_FOV;
+    var aspect = camera ? camera.aspect : innerWidth / innerHeight;
+    var yc = CAM_TARGET[1];
+    return { hw: half * aspect, yTop: yc + half, yBot: Math.max(FLOOR + FLOOR_ROOM, yc - half) };
+  }
+
+  var renderer, scene, camera, clock;
+  var spot, fill;
+  var fishes = [];
+  var caustics = { value: 1 };
+  var uTime = { value: 0 };
+
+  // -- каустика: подмешиваем в diffuse любого стандартного материала --------
+  var CAUSTIC_GLSL = [
+    'float causticPattern(vec2 p, float t) {',
+    '  vec2 q = p * 0.55;',
+    '  float c = 0.0;',
+    '  for (int i = 0; i < 3; i++) {',
+    '    float fi = float(i) + 1.0;',
+    '    q += 0.42 * vec2(sin(q.y * 1.35 + t * 1.05 * fi), cos(q.x * 1.6 + t * 0.9 * fi));',
+    '    c += 0.32 / (abs(sin(q.x) * sin(q.y)) * 3.3 + 0.32);',
+    '  }',
+    '  return pow(clamp(c * 0.16, 0.0, 1.0), 2.5);',
+    '}'
+  ].join('\n');
+
+  function addCaustics(mat, strength) {
+    mat.onBeforeCompile = function (shader) {
+      shader.uniforms.uTime = uTime;
+      shader.uniforms.uCaustics = caustics;
+      shader.vertexShader = 'varying vec3 vWPos;\n' + shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\n  vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;'
+      );
+      shader.fragmentShader = 'varying vec3 vWPos;\nuniform float uTime;\nuniform float uCaustics;\n' +
+        CAUSTIC_GLSL + '\n' + shader.fragmentShader.replace(
+          '#include <map_fragment>',
+          [
+            '#include <map_fragment>',
+            'float caus = causticPattern(vWPos.xz, uTime * 0.35);',
+            // выше от дна каустика слабее — свет уже рассеялся
+            'float depthFade = 1.0 - clamp(vWPos.y / ' + LIT_DEPTH.toFixed(1) + ', 0.0, 1.0) * 0.65;',
+            'diffuseColor.rgb += vec3(0.45, 0.72, 0.85) * caus * ' + strength.toFixed(2) + ' * uCaustics * depthFade;'
+          ].join('\n')
+        );
+    };
+    mat.customProgramCacheKey = function () { return 'caustic' + strength; };
+    return mat;
+  }
+
+  // -- сцена ----------------------------------------------------------------
+  function init() {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;   // киношная тональная компрессия
+    renderer.toneMappingExposure = 0.92;
+    // Теней в сцене больше нет: некому их отбрасывать и не на что принимать.
+    document.body.appendChild(renderer.domElement);
+
+    scene = new THREE.Scene();
+    new THREE.TextureLoader().load('/assets/backgrounds/01-0.png', function(tex) { scene.background = tex; fitBackground(); });
+
+    // Лёгкая «толща воды»: чем дальше рыбка, тем сильнее уходит в синеву.
+    // Фона тумана не касается — он рисуется отдельно, за сценой.
+    // Диапазон растянут под увеличенную глубину: у ближней границы тумана нет,
+    // у дальней — примерно половина, иначе задние рыбки просто растворятся.
+    scene.fog = new THREE.Fog(0x2e86a8, 14, 60);
+
+    camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 300);
+    camera.position.fromArray(CAM_POS);
+    camera.lookAt(new THREE.Vector3().fromArray(CAM_TARGET));
+
+    // Отражения на чешуе берём из процедурной «комнаты»: без окружения
+    // PBR-материалы рыб выглядят плоско.
+    var pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    var envRT = pmrem.fromScene(new THREE.RoomEnvironment(), 0.04);
+    scene.environment = envRT.texture;
+
+    buildLights();
+
+    clock = new THREE.Clock();
+    addEventListener('resize', onResize);
+
+    // Моделей на старте не грузим: своих рыб у аквариума нет, каждая приходит
+    // из детского рисунка или из админки и тянет ровно свой файл. Пустой
+    // аквариум должен открываться сразу.
+    initPainted();
+    initSettings();
+    wantShot(3.5);
+    if (PACK) loadPack();
+    var l = document.getElementById('loading');
+    if (l) l.remove();
+    animate();
+  }
+
+  // -- рыбы -----------------------------------------------------------------
+  // Своих моделей у сцены нет. Каждая рыбка — вид из купленного пака CGTrader:
+  // либо со своей заводской текстурой (запуск из админки), либо с детским
+  // рисунком, натянутым по планарной развёртке бокового силуэта. Какие виды
+  // существуют, знает assets/coloring/manifest.json — он же задаёт контур на
+  // листе раскраски, так что второго списка видов в проекте быть не должно.
+
+  // Разбираем произвольную модель: где длинная ось, где спина, где голова.
+  //  · тело     — самая длинная ось габарита
+  //  · спина    — средняя (рыба выше, чем толще)
+  //  · бок      — самая тонкая
+  //  · голова   — тот конец, где тело ТОЛЩЕ вбок. Высоту считать нельзя:
+  //               хвостовой плавник высокий, но плоский, и обманет замер.
+  //  · верх     — центр масс у рыбы ниже середины габарита (брюхо мясистое,
+  //               спинной плавник тонкий), значит спина там, где пусто.
+  // Модели из 3ds Max приезжают Z-up и лежат вдоль Y — без этого они бы
+  // плавали стоя на хвосте.
+  function fishFrame(root, useWorld, axes) {
+    var box = new THREE.Box3(), sum = new THREE.Vector3(), v = new THREE.Vector3(), n = 0;
+    root.traverse(function (o) {
+      if (!o.isMesh) return;
+      var p = o.geometry.attributes.position;
+      for (var i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i);
+        if (useWorld) v.applyMatrix4(o.matrixWorld);
+        box.expandByPoint(v);
+        sum.add(v); n++;
+      }
+    });
+    var size = box.getSize(new THREE.Vector3());
+    var center = box.getCenter(new THREE.Vector3());
+    var centroid = sum.divideScalar(Math.max(n, 1));
+
+    var order = [['x', size.x], ['y', size.y], ['z', size.z]].sort(function (a, b) { return b[1] - a[1]; });
+    var body = order[0][0], up = order[1][0], lat = order[2][0];
+    // Оси, вычисленные по скелету, точнее габарита: дискус выше, чем длиннее,
+    // а у крылатки габарит задают растопыренные плавники, а не тело.
+    if (axes) { body = axes.body; up = axes.up; lat = axes.lat; }
+    var span = size[body] || 1;
+
+    var thickLow = 0, thickHigh = 0;
+    root.traverse(function (o) {
+      if (!o.isMesh) return;
+      var p = o.geometry.attributes.position;
+      for (var i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i);
+        if (useWorld) v.applyMatrix4(o.matrixWorld);
+        var t = (v[body] - box.min[body]) / span;
+        var lateral = Math.abs(v[lat] - center[lat]);
+        if (t < 0.18) thickLow = Math.max(thickLow, lateral);
+        else if (t > 0.82) thickHigh = Math.max(thickHigh, lateral);
+      }
+    });
+
+    return {
+      box: box, size: size, center: center,
+      body: body, up: up, lat: lat,
+      headAtMax: thickHigh > thickLow,
+      // Правило «где спина» одно на всех — в FishFrame. Своя копия здесь
+      // однажды уже разъехалась с общей, и спинорог плавал кверху брюхом.
+      dorsalPositive: FishFrame.dorsalPositive(up, centroid, center)
+    };
+  }
+
+  function axisVec(name, sign) {
+    return new THREE.Vector3(name === 'x' ? sign : 0, name === 'y' ? sign : 0, name === 'z' ? sign : 0);
+  }
+
+  function maskVec(name) { return axisVec(name, 1); }
+
+  function normalizeFish(root, targetLen, skel) {
+    root.updateWorldMatrix(true, true);
+    var axes = skel && skel.axes;
+    var w = fishFrame(root, true, axes);
+    var local = fishFrame(root, false, axes);
+    if (skel && typeof skel.headAtMax === 'boolean') {
+      w.headAtMax = skel.headAtMax; local.headAtMax = skel.headAtMax;
+    }
+
+    // Строим базис модели и обращаем его: нос > +Z, спина > +Y.
+    var forward = axisVec(w.body, w.headAtMax ? 1 : -1);
+    var upVec = axisVec(w.up, w.dorsalPositive ? 1 : -1);
+    var right = new THREE.Vector3().crossVectors(upVec, forward);
+    var basis = new THREE.Matrix4().makeBasis(right, upVec, forward);
+    var quat = new THREE.Quaternion().setFromRotationMatrix(basis).invert();
+
+    root.position.sub(w.center);
+
+    return {
+      quat: quat,
+      scale: targetLen / (w.size[w.body] || 1),
+      // для изгиба нужны СВОИ, локальные оси меша — шейдер правит position
+      bodyMask: maskVec(local.body),
+      latMask: maskVec(local.lat),
+      range: [local.box.min[local.body], local.box.max[local.body]],
+      headAtMax: local.headAtMax
+    };
+  }
+
+  // Изгиб тела для моделей без скелета.
+  function addBend(mat, info, amp, phase) {
+    var uniforms = {
+      uTime: uTime,
+      uAmp: { value: amp },
+      uPhase: { value: phase },
+      uBodyMask: { value: info.bodyMask },
+      uLatMask: { value: info.latMask },
+      uRange: { value: new THREE.Vector2(info.range[0], info.range[1]) },
+      uHeadAtMax: { value: info.headAtMax ? 1 : 0 }
+    };
+    // Раскраска могла уже занять onBeforeCompile — не затираем её, а достраиваем.
+    var prev = mat.onBeforeCompile;
+    mat.onBeforeCompile = function (shader) {
+      if (prev) prev.call(this, shader);
+      Object.keys(uniforms).forEach(function (k) { shader.uniforms[k] = uniforms[k]; });
+      shader.vertexShader =
+        'uniform float uTime; uniform float uAmp; uniform float uPhase;\n' +
+        'uniform vec3 uBodyMask; uniform vec3 uLatMask;\n' +
+        'uniform vec2 uRange; uniform float uHeadAtMax;\n' +
+        shader.vertexShader.replace('#include <begin_vertex>', [
+          '#include <begin_vertex>',
+          'float a = dot(transformed, uBodyMask);',
+          'float span = max(uRange.y - uRange.x, 0.0001);',
+          // k = 0 у головы, 1 у хвоста
+          'float k = uHeadAtMax > 0.5 ? (uRange.y - a) / span : (a - uRange.x) / span;',
+          'k = clamp(k, 0.0, 1.0); k *= k;',
+          'float w = sin(uTime * 5.5 + uPhase + k * 3.2) * uAmp * k * span * 0.25;',
+          'transformed += uLatMask * w;'
+        ].join('\n'));
+    };
+    mat.customProgramCacheKey = function () { return prev ? 'paint+bend' : 'bend'; };
+    return mat;
+  }
+
+  // Один загрузчик на сцену. Draco нужен не для пака — там геометрия обычная, —
+  // а чтобы сжатая модель, если такая однажды появится, просто открылась.
+  var loaderShared = null;
+  function gltfLoader() {
+    if (loaderShared) return loaderShared;
+    loaderShared = new THREE.GLTFLoader();
+    if (THREE.DRACOLoader) {
+      var draco = new THREE.DRACOLoader();
+      draco.setDecoderPath('/vendor/draco/');
+      loaderShared.setDRACOLoader(draco);
+    }
+    return loaderShared;
+  }
+
+  // Плавники и тело различаем по именам костей: в этом паке плавники так
+  // и названы (Discus1_fin_l_4_tip41), а позвоночник — Bone01…Bone13.
+  var FIN_BONE = /fin|pect|dors|anal|pelv|tip/i;
+
+  // Сколько взмахов ТЕЛОМ в секунду в клипе как он есть, и есть ли они вообще.
+  // Автор пака гнал анимацию «на месте», не думая о том, с какой скоростью
+  // рыба поплывёт у нас: у части моделей тело бьёт 0.67 Гц, у части — 1.2.
+  //
+  // А у семи видов из двенадцати тело в клипе не двигается ВОВСЕ: машут одни
+  // плавники, а вперёд рыбу везла дорожка позиции, которую мы срезаем. Для
+  // них возвращаем ноль — это знак, что изгиб придётся делать самим.
+  //
+  // Меряем по самой размашистой кости тела: сколько раз её вращение перешло
+  // среднее значение, столько и полувзмахов.
+  function clipBeatHz(clip) {
+    var best = 0, bestSpan = 0;
+    for (var t = 0; t < clip.tracks.length; t++) {
+      var tr = clip.tracks[t];
+      if (!(tr instanceof THREE.QuaternionKeyframeTrack)) continue;
+      if (FIN_BONE.test(tr.name)) continue;
+      var v = tr.values, n = v.length / 4;
+      if (n < 4) continue;
+      // компонента с наибольшим размахом: у рыскания хвостом это обычно y
+      for (var c = 0; c < 3; c++) {
+        var min = Infinity, max = -Infinity, sum = 0;
+        for (var i = 0; i < n; i++) {
+          var x = v[i * 4 + c];
+          if (x < min) min = x;
+          if (x > max) max = x;
+          sum += x;
+        }
+        var span = max - min;
+        if (span <= bestSpan) continue;
+        var mean = sum / n, cross = 0;
+        for (var j = 1; j < n; j++) {
+          if ((v[(j - 1) * 4 + c] - mean) * (v[j * 4 + c] - mean) < 0) cross++;
+        }
+        var dur = tr.times[tr.times.length - 1] || 1;
+        bestSpan = span;
+        best = cross / 2 / dur;
+      }
+    }
+    return best > 0.05 ? best : 0;
+  }
+
+  function spawnFromModel(spec, index) {
+    var clone = THREE.SkeletonUtils.clone(spec.gltf.scene);
+    var pivot = new THREE.Group();
+    pivot.quaternion.copy(spec.info.quat);
+    pivot.scale.setScalar(spec.info.scale);
+    pivot.add(clone);
+
+    // beatHz = 0 значит «клип тело не гнёт» — в том числе когда клипа нет вовсе.
+    var mixer = null, beatHz = 0;
+    if (spec.gltf.animations && spec.gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(clone);
+      var clip = spec.gltf.animations[0];
+      beatHz = clipBeatHz(clip);
+      var act = mixer.clipAction(clip);
+      act.time = Math.random() * 2;   // рассинхронизируем взмахи
+      act.play();
+    }
+
+    var phase = Math.random() * 6.28;
+    clone.traverse(function (o) {
+      if (!o.isMesh) return;
+      if (spec.paintedTex) {
+        // детская раскраска: текстура ложится по планарной UV шаблона,
+        // сверху — бегущая каустика, единственный оставшийся «подводный» эффект
+        //
+        // skinning обязателен: в three r128 материал без этого флага
+        // компилируется без скиннинга, и рыба остаётся в позе привязки —
+        // скелет машет хвостом, а меш стоит доской. Заводской материал
+        // покупной рыбы флаг получает от GLTFLoader, наш — нет.
+        o.material = addCaustics(new THREE.MeshStandardMaterial({
+          map: spec.paintedTex, roughness: 0.55, metalness: 0.05,
+          side: THREE.DoubleSide, envMapIntensity: 0.5,
+          skinning: !!o.isSkinnedMesh
+        }), 0.5);
+      } else {
+        // рыба со своей заводской текстурой — показываем как есть,
+        // только клонируем материал, чтобы каустика не текла в общий
+        o.material = addCaustics(o.material.clone(), 0.5);
+        o.material.envMapIntensity = 0.5;
+      }
+      // Тело гнём сами, если его не гнёт клип: либо скелета нет вовсе, либо
+      // в клипе шевелятся одни плавники (см. clipBeatHz). Скиннинг при этом
+      // остаётся — плавники продолжают работать от своего клипа.
+      var bend = beatHz ? 0 : (spec.bend || 0.35);
+      if (bend > 0) addBend(o.material, spec.info, bend, phase);
+    });
+
+    var group = new THREE.Group();
+    group.add(pivot);
+    return { group: group, mixer: mixer, phase: phase, beatHz: beatHz };
+  }
+
+  function Fish(spec, index) {
+    var built = spawnFromModel(spec, index);
+    this.kind = spec.name;
+    this.spec = spec;
+    this.mesh = built.group;
+    this.mixer = built.mixer;
+    this.beatHz = built.beatHz;
+    this.len = spec.length || 2;
+    // Половина длины рыбы: на неё поджимаются границы, чтобы за край кадра
+    // не торчал ни нос, ни хвост.
+    this.radius = (spec.length || 2) * 0.5;
+
+    // Рождаемся сразу внутри допустимого объёма на своей глубине, иначе
+    // рыба стартует за краем кадра и первые секунды выгребает обратно.
+    var z0 = Z_FAR + Math.random() * (Z_NEAR - Z_FAR);
+    var l0 = limitsAt(z0);
+    var inX = Math.max(0.5, l0.hw - MARGIN);
+    var inLo = l0.yBot + MARGIN;
+    var inHi = l0.yTop - MARGIN;
+    this.pos = new THREE.Vector3(
+      (Math.random() * 2 - 1) * inX,
+      inLo + Math.random() * Math.max(0.5, inHi - inLo),
+      z0
+    );
+    this.vel = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize().multiplyScalar(spec.speed);
+    this.speed = spec.speed * (0.85 + Math.random() * 0.3);
+    this.phase = built.phase;
+
+    // Голод. noticeFood — с какого расстояния рыба видит корм: у каждой свой,
+    // чтобы стая не срывалась к еде одновременно. fullUntil — до какой секунды
+    // она сыта после последней гранулы.
+    this.noticeFood = 6 + Math.random() * 6;
+    this.fullUntil = 0;
+    scene.add(this.mesh);
+  }
+
+  var _a = new THREE.Vector3(), _l = new THREE.Vector3(), _d = new THREE.Vector3();
+
+  Fish.prototype.update = function (dt, t) {
+    _a.set(
+      Math.sin(t * 0.42 + this.phase) * 0.5,
+      Math.sin(t * 0.3 + this.phase * 1.6) * 0.22,
+      Math.cos(t * 0.37 + this.phase) * 0.5
+    );
+
+    // мелкие рыбки держатся стайкой
+    if (this.spec.school) {
+      var cx = 0, cy = 0, cz = 0, n = 0;
+      for (var i = 0; i < fishes.length; i++) {
+        var o = fishes[i];
+        if (o === this || o.kind !== this.kind) continue;
+        var d = this.pos.distanceTo(o.pos);
+        if (d < 5) { cx += o.pos.x; cy += o.pos.y; cz += o.pos.z; n++; }
+        if (d < 1.2 && d > 0.001) {
+          _d.copy(this.pos).sub(o.pos).divideScalar(d * d);
+          _a.addScaledVector(_d, 1.6);
+        }
+      }
+      if (n) {
+        _d.set(cx / n - this.pos.x, cy / n - this.pos.y, cz / n - this.pos.z);
+        if (_d.lengthSq() > 0.01) _a.addScaledVector(_d.normalize(), 0.7);
+      }
+    }
+
+    // Корм: плывём к ближайшей грануле, вплотную — съедаем.
+    //
+    // Замечаем только то, что рядом. Раньше на щепотку слетался весь аквариум
+    // из всех углов разом — выглядело как построение по команде, а не как
+    // рыбы, которые заметили еду. Радиус у каждой рыбы свой, поэтому стая
+    // подтягивается не одновременно.
+    //
+    // Пока паникуем — не до еды: испуганная рыба про корм не помнит.
+    // Наевшись, тоже какое-то время не реагирует — иначе одна шустрая рыба
+    // подбирает всю щепотку, пока остальные подплывают.
+    if (foods.length && t > this.fullUntil) {
+      var best = -1, bestD = 1e9;
+      for (var fi = 0; fi < foods.length; fi++) {
+        var fd = this.pos.distanceTo(foods[fi].mesh.position);
+        if (fd < bestD) { bestD = fd; best = fi; }
+      }
+      if (best >= 0 && bestD < this.noticeFood) {
+        if (bestD < EAT_REACH) {
+          // За один заход рыба хватает от одной до трёх гранул сразу, без пауз
+          // между ними: сколько оказалось в пределах рта, столько и взяла.
+          // Поэтому из плотной кучки она выхватывает три, а из редкой россыпи
+          // достаётся одна — число получается само, а не назначается.
+          eatNear(this.pos, 1 + Math.floor(Math.random() * 3));
+          this.fullUntil = t + 2.5 + Math.random() * 8;
+        } else {
+          _d.copy(foods[best].mesh.position).sub(this.pos).normalize();
+          // чем ближе, тем настойчивее; голод сильнее блуждания и стаи
+          _a.addScaledVector(_d, bestD < 6 ? 4.5 : 2.2);
+        }
+      }
+    }
+
+    var M = MARGIN;
+    var W = 5;
+
+    if (this.pos.z > Z_NEAR - M) _a.z -= W;
+    if (this.pos.z < Z_FAR + M) _a.z += W;
+
+    // Боковые и вертикальные границы зависят от глубины: у ближней стенки
+    // кадр узкий, у дальней широкий. Считаем их на той глубине, где рыба
+    // сейчас.
+    //
+    // Границу держим для ЦЕНТРА рыбы, а не для её края. Значит центр доходит
+    // до самой кромки кадра, а туловище наполовину уходит за неё — аквариум
+    // читается как окно в риф побольше, а не как коробка со стеклом.
+    var lim = limitsAt(this.pos.z);
+    if (this.pos.x > lim.hw - M) _a.x -= W;
+    if (this.pos.x < -lim.hw + M) _a.x += W;
+    if (this.pos.y > lim.yTop - M) _a.y -= W;
+    if (this.pos.y < lim.yBot + M) _a.y += W;
+
+    // Пол жёсткий: рыба может подойти к нему вплотную, но не сквозь.
+    var floor = FLOOR + FLOOR_ROOM;
+    if (this.pos.y < floor) _a.y += (floor - this.pos.y) * 4;
+
+    this.vel.addScaledVector(_a, dt * 2.0);
+    var sp = this.vel.length();
+    if (sp > this.speed) this.vel.multiplyScalar(this.speed / sp);
+    if (sp < this.speed * 0.35) this.vel.multiplyScalar(1.05);
+
+    this.pos.addScaledVector(this.vel, dt);
+    this.mesh.position.copy(this.pos);
+    this.mesh.lookAt(_l.copy(this.pos).add(this.vel));
+    this.mesh.rotation.z += Math.sin(t * 2.5 + this.phase) * 0.015;
+
+    // Скелетная анимация Swim там, где она есть; изгиб шейдером — где нет.
+    //
+    // Скорость клипа считаем от пути, а не берём как записано: рыба должна
+    // делать примерно один взмах на корпус длины. Иначе крупный ангел с
+    // быстрым клипом молотит хвостом втрое чаще, чем продвигается, и это
+    // первое, что бросается в глаза.
+    if (this.mixer) {
+      var scale;
+      if (this.beatHz) {
+        // Клип гнёт тело: подгоняем темп под путь.
+        var want = BEATS_PER_LENGTH * this.vel.length() / this.len;   // взмахов в секунду
+        scale = want / this.beatHz;
+      } else {
+        // Клип шевелит только плавники — тело гнётся шейдером. Плавникам
+        // темп от длины тела ни к чему, им хватает мягкой связи со скоростью.
+        scale = 0.6 + this.vel.length() / this.speed * 0.6;
+      }
+      this.mixer.update(dt * Math.max(0.25, Math.min(2, scale)));
+    }
+  };
+
+  // -- корм: кнопка «Покормить» в админке -----------------------------------
+  // Гранулы сыплются сверху, медленно тонут; рыбки плывут к ближайшей
+  // и съедают. Что дотонуло до пола — полежит и растворится.
+  var foods = [];
+  var foodGeo, foodMat;
+
+  // Потолок на общее число гранул: кнопка блокируется на несколько секунд,
+  // но за долгую игру корм всё равно накопился бы и просадил кадры.
+  var FOOD_MAX = 220;
+
+  // Докуда рыба дотягивается вниз. Её центр опускается примерно до yBot + 1.3
+  // (разворот на yBot + MARGIN плюс небольшой перелёт), а хватает она гранулу
+  // с расстояния 0.8 — то есть предел около yBot + 0.5.
+  //
+  // Порог растворения ставим чуть ВЫШЕ предела: корм начинает таять до того,
+  // как станет недоступным. Так рыбы не толкутся у самого дна, вылавливая
+  // последнее, а тающую гранулу всё ещё можно поймать — она исчезает не
+  // мгновенно, а за FOOD_FADE секунд.
+  var FOOD_REACH = 0.9;
+  var FOOD_FADE = 3.5;   // секунд от начала растворения до исчезновения
+  var EAT_REACH = 0.8;   // с какого расстояния рыба дотягивается до гранулы
+
+  function feedNow() {
+    if (!foodGeo) {
+      foodGeo = new THREE.SphereGeometry(0.09, 8, 6);
+      foodMat = new THREE.MeshStandardMaterial({
+        color: 0xd2913f, roughness: 0.9, emissive: 0x63421a, emissiveIntensity: 0.6
+      });
+    }
+
+    // Каждая щепотка своя. Один параметр задаёт характер броска: у кучного
+    // корм падает плотным комком, у рассыпчатого разлетается широко. Числа
+    // гранул связаны с ним же — широкий бросок это и есть «сыпанул от души».
+    var tight = Math.random();                    // 0 — рассыпал, 1 — уронил кучкой
+    var spreadX = 0.7 + (1 - tight) * 5.0;
+    var spreadZ = 0.5 + (1 - tight) * 2.4;
+    var count = Math.round(7 + (1 - tight) * 26 + Math.random() * 10);
+    count = Math.min(count, Math.max(0, FOOD_MAX - foods.length));
+
+    // корм сыплем в ближней половине объёма: в дальней его почти не видно.
+    // По кадру, а не по объёму — иначе часть щепотки падала бы за краем.
+    var cz = Z_NEAR - 3 - Math.random() * ((Z_NEAR - Z_FAR) * 0.45);
+    var cl = frameAt(cz);
+    var cx = (Math.random() * 2 - 1) * Math.max(1, cl.hw - spreadX - 1);
+
+    for (var i = 0; i < count; i++) {
+      var m = new THREE.Mesh(foodGeo, foodMat);
+      m.position.set(
+        cx + (Math.random() - 0.5) * spreadX * 2,
+        // Сыплется от верхнего края кадра на этой глубине, а не с абстрактной
+        // «поверхности» — иначе первые секунды корм падает вне видимой области.
+        // Разброс по высоте делает из мгновенного залпа сыплющуюся струйку.
+        cl.yTop - 0.3 - Math.random() * (0.6 + (1 - tight) * 2.5),
+        cz + (Math.random() - 0.5) * spreadZ * 2
+      );
+      scene.add(m);
+      foods.push({
+        mesh: m,
+        seed: Math.random() * 6.28,
+        sink: 0.28 + Math.random() * 0.22,   // у всех гранул своя скорость
+        gone: 0                               // сколько уже растворяется
+      });
+    }
+  }
+
+  function updateFoods(dt, t) {
+    for (var i = foods.length - 1; i >= 0; i--) {
+      var f = foods[i], p = f.mesh.position;
+
+      p.y -= f.sink * dt;
+      p.x += Math.sin(t * 1.7 + f.seed) * dt * 0.12;
+      p.z += Math.cos(t * 1.3 + f.seed) * dt * 0.09;
+
+      // Ниже этой отметки гранулу уже не достать: рыба разворачивается
+      // у своей нижней границы, а корм продолжает тонуть. Раньше он ложился
+      // на пол и лежал там полминуты, а рыбы всё это время толкались над ним
+      // и не могли дотянуться. Теперь ушедшее из-под досягаемости тает.
+      if (p.y < limitsAt(p.z).yBot + FOOD_REACH) {
+        f.gone += dt;
+        var k = 1 - f.gone / FOOD_FADE;
+        if (k <= 0.02) { eatFood(i); continue; }
+        f.mesh.scale.setScalar(k);
+      }
+
+      // сквозь пол не проваливаемся — там гранула и дотает
+      if (p.y < FLOOR + 0.12) p.y = FLOOR + 0.12;
+    }
+  }
+
+  function eatFood(i) {
+    scene.remove(foods[i].mesh);
+    foods.splice(i, 1);
+  }
+
+  // Убирает до maxCount гранул в пределах рта. Идём с конца списка, поэтому
+  // собранные индексы уже по убыванию — удаляя их подряд, не сдвигаем те,
+  // что ещё предстоит удалить.
+  function eatNear(pos, maxCount) {
+    var hit = [];
+    for (var i = foods.length - 1; i >= 0 && hit.length < maxCount; i--) {
+      if (pos.distanceTo(foods[i].mesh.position) < EAT_REACH) hit.push(i);
+    }
+    for (var k = 0; k < hit.length; k++) eatFood(hit[k]);
+    return hit.length;
+  }
+
+  // -- нарисованные рыбки: ребёнок раскрасил лист, телефон прислал текстуру --
+  // Сервер (server.js) хранит их в data/tanks/<id>/fish; опрашиваем и подселяем.
+  var PAINTED_MAX = 40;
+  // Длина рыб, запущенных из админки со своей текстурой. Для видов, у которых
+  // есть раскраска, берём длину из манифеста — иначе один и тот же вид был бы
+  // разного размера в зависимости от того, откуда он приплыл.
+  var PACK_LEN = 2.2;
+
+  // Рисунки, снятые с прежних четырёх моделей (те были Free3D Personal Use и
+  // из игры убраны). Пересаживаем их на покупной вид с похожими пропорциями
+  // тела: рисунок слегка растянется, но 18 детских рыбок не пропадут.
+  var LEGACY_KIND = {
+    chromis: 'fusilierfish',
+    angelfish: 'bluetang',
+    tropical: 'bluecheekbutterflyfish',
+    perch: 'clowntriggerfish'
+  };
+
+  var paintedSpec = {};   // вид > {length} из манифеста раскрасок
+  var paintedSeen = {}, paintedCount = 0, paintedTemplates = {};
+
+  function paintedModel(kind) { return LEGACY_KIND[kind] || kind; }
+  function paintedLen(kind) {
+    var s = paintedSpec[paintedModel(kind)];
+    return s && s.length ? s.length : 2.0;
+  }
+
+  // Шаблон вида: клон модели с планарной UV-развёрткой бокового силуэта —
+  // той же рамкой, по которой capture.js кадрирует текстуру с листа. Модель
+  // приезжает асинхронно, поэтому шаблон отдаём колбэком.
+  function withPaintedTemplate(kind, cb) {
+    if (paintedTemplates[kind]) return cb(paintedTemplates[kind]);
+    withPackModel(paintedModel(kind), function (base) {
+      if (paintedTemplates[kind]) return cb(paintedTemplates[kind]);
+      cb(buildPaintedTemplate(kind, base));
+    });
+  }
+
+  function buildPaintedTemplate(kind, base) {
+    var clone = THREE.SkeletonUtils.clone(base.gltf.scene);
+    var pivot = new THREE.Group();
+    pivot.quaternion.copy(base.info.quat);
+    pivot.scale.setScalar(base.info.scale);
+    pivot.add(clone);
+    var holder = new THREE.Group();
+    holder.add(pivot);
+    holder.updateMatrixWorld(true);
+
+    var meshes = [];
+    clone.traverse(function (o) { if (o.isMesh) meshes.push(o); });
+
+    var v = new THREE.Vector3();
+    var min = { z: Infinity, y: Infinity }, max = { z: -Infinity, y: -Infinity };
+    meshes.forEach(function (o) {
+      var p = o.geometry.attributes.position;
+      for (var i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld);
+        if (v.z < min.z) min.z = v.z;
+        if (v.z > max.z) max.z = v.z;
+        if (v.y < min.y) min.y = v.y;
+        if (v.y > max.y) max.y = v.y;
+      }
+    });
+    var spanZ = Math.max(max.z - min.z, 1e-6), spanY = Math.max(max.y - min.y, 1e-6);
+
+    meshes.forEach(function (o) {
+      var g = o.geometry = o.geometry.clone();
+      var p = g.attributes.position;
+      var uv = new Float32Array(p.count * 2);
+      for (var i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld);
+        uv[i * 2] = (v.z - min.z) / spanZ;          // u: хвост > нос
+        uv[i * 2 + 1] = (v.y - min.y) / spanY;      // v: брюхо > спина
+      }
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    });
+
+    holder.remove(pivot);
+    pivot.remove(clone);
+    paintedTemplates[kind] = { scene: clone, base: base };
+    return paintedTemplates[kind];
+  }
+
+  function spawnPainted(kind, tex, cb) {
+    withPaintedTemplate(kind, function (tpl) {
+      if (!tpl) return cb(null);
+      tex.encoding = THREE.sRGBEncoding;
+      var base = tpl.base, len = paintedLen(kind);
+      var spec = {
+        name: 'painted-' + kind,
+        // Анимацию отдаём настоящую: у покупных моделей скелет и есть весь
+        // плавник. Планарная UV живёт в вершинах и от скиннинга не съезжает.
+        gltf: { scene: tpl.scene, animations: base.gltf.animations || [] },
+        info: base.info,
+        speed: 1.7, bend: 0,
+        // Модель шаблона потом домасштабируется до len, поэтому настоящая
+        // длина рыбки в сцене — именно она.
+        length: len,
+        paintedTex: tex
+      };
+      var fish = new Fish(spec, 0);
+      fish.mesh.scale.setScalar(len / base.length);
+      fishes.push(fish);
+      paintedCount++;
+      cb(fish);
+    });
+  }
+
+  function removePainted(id) {
+    var fish = paintedSeen[id];
+    delete paintedSeen[id];
+    if (!fish) return;   // null — рыбка ещё грузилась, спавна не будет
+    scene.remove(fish.mesh);
+    var idx = fishes.indexOf(fish);
+    if (idx !== -1) fishes.splice(idx, 1);
+    paintedCount--;
+  }
+
+  // -- покупные рыбки -------------------------------------------------------
+  // Модель грузим один раз на вид и переиспользуем: десять клоунов в аквариуме
+  // не должны означать десять скачиваний одного и того же файла.
+  var packModels = {};   // name > {gltf, info} | 'loading'
+  var packList = null;
+
+  // Клип у части моделей «везёт» рыбу вперёд: в нём есть дорожка позиции
+  // корня, сдвигающая её на четыре-пять корпусов. По аквариуму рыбу возим мы,
+  // поэтому такую дорожку убираем — иначе модель уезжает от собственного
+  // места, а на стыке цикла прыгает обратно. Мелкие смещения (челюсть,
+  // плавник) не трогаем: убираем только те, что сравнимы с длиной тела.
+  function stripRootMotion(clip, bodyLen) {
+    var limit = bodyLen * 0.5;
+    clip.tracks = clip.tracks.filter(function (tr) {
+      if (!/\.position$/.test(tr.name)) return true;
+      var v = tr.values, n = v.length / 3;
+      var lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+      for (var i = 0; i < n; i++) {
+        for (var c = 0; c < 3; c++) {
+          var x = v[i * 3 + c];
+          if (x < lo[c]) lo[c] = x;
+          if (x > hi[c]) hi[c] = x;
+        }
+      }
+      var move = Math.sqrt(
+        Math.pow(hi[0] - lo[0], 2) + Math.pow(hi[1] - lo[1], 2) + Math.pow(hi[2] - lo[2], 2));
+      return move < limit;
+    });
+  }
+
+  function withPackModel(name, cb) {
+    var cached = packModels[name];
+    if (cached && cached !== 'loading') return cb(cached);
+    if (cached === 'loading') { setTimeout(function () { withPackModel(name, cb); }, 300); return; }
+
+    var start = function () {
+      var item = packList && packList.filter(function (m) { return m.name === name; })[0];
+      if (!item) return;
+      packModels[name] = 'loading';
+      gltfLoader().load(item.url, function (gltf) {
+        var known = paintedSpec[name];
+        var spec = {
+          name: name, gltf: gltf, bend: 0,
+          length: known && known.length ? known.length : PACK_LEN
+        };
+        spec.info = normalizeFish(gltf.scene, spec.length, FishFrame.fromSkeleton(gltf));
+        var b = FishFrame.bounds(gltf.scene);
+        (gltf.animations || []).forEach(function (clip) {
+          stripRootMotion(clip, Math.max(b.size.x, b.size.y, b.size.z));
+        });
+        packModels[name] = spec;
+        cb(spec);
+      }, undefined, function (err) {
+        delete packModels[name];
+        console.error('пак: не загрузилась ' + name, err);
+      });
+    };
+
+    if (packList) return start();
+    fetch('/api/pack').then(function (r) { return r.json(); })
+      .then(function (list) { packList = list; start(); })
+      .catch(function () { packList = []; });
+  }
+
+  function spawnPack(name) {
+    var holder = { fish: null };
+    withPackModel(name, function (base) {
+      var spec = {
+        name: 'pack-' + name,
+        gltf: base.gltf,
+        info: base.info,
+        length: base.length,
+        speed: 1.2 + Math.random() * 0.6,
+        bend: 0
+      };
+      holder.fish = new Fish(spec, 0);
+      fishes.push(holder.fish);
+    });
+    return holder;
+  }
+
+  function pollPainted() {
+    fetch(Tank.api + '/fish').then(function (r) { return r.json(); }).then(function (list) {
+      if (!Array.isArray(list)) return;
+      setFishCount(list.length);
+      var alive = {};
+      list.forEach(function (item) { alive[item.id] = true; });
+
+      // удалённые через админку уплывают из сцены без перезагрузки
+      Object.keys(paintedSeen).forEach(function (id) {
+        if (!alive[id]) { removePainted(id); wantShot(2); }
+      });
+
+      list.forEach(function (item) {
+        if (paintedSeen.hasOwnProperty(item.id) || paintedCount >= PAINTED_MAX) return;
+
+        if (item.type === 'pack') {
+          paintedSeen[item.id] = null;
+          paintedCount++;
+          var holder = spawnPack(item.model);
+          // Модель приезжает асинхронно; к тому времени рыбку могли удалить,
+          // поэтому подменяем запись только если она ещё жива.
+          var check = setInterval(function () {
+            if (!holder.fish) return;
+            clearInterval(check);
+            if (paintedSeen.hasOwnProperty(item.id)) { paintedSeen[item.id] = holder.fish; wantShot(4); }
+            else {                       // удалили, пока грузилось
+              scene.remove(holder.fish.mesh);
+              var i = fishes.indexOf(holder.fish);
+              if (i !== -1) fishes.splice(i, 1);
+            }
+          }, 200);
+          return;
+        }
+
+        if (!paintedSpec[paintedModel(item.kind)]) {
+          console.warn('нет шаблона для вида ' + item.kind + ' — рыбка пропущена');
+          return;
+        }
+        paintedSeen[item.id] = null;   // текстура в пути
+        new THREE.TextureLoader().load(Tank.api + '/fish/' + item.id + '/texture.png', function (tex) {
+          if (!paintedSeen.hasOwnProperty(item.id)) return;   // удалили, пока грузилась
+          spawnPainted(item.kind, tex, function (fish) {
+            // модель ехала дольше текстуры — рыбку могли успеть удалить
+            if (!fish) return;
+            if (paintedSeen.hasOwnProperty(item.id)) { paintedSeen[item.id] = fish; wantShot(4); }
+            else {
+              scene.remove(fish.mesh);
+              var i = fishes.indexOf(fish);
+              if (i !== -1) fishes.splice(i, 1);
+              paintedCount--;
+            }
+          });
+        });
+      });
+    }).catch(function () { /* сервер без API — просто нет рыбок */ });
+  }
+
+  // Манифест раскрасок — единственный список видов. Пока он не приехал,
+  // рыбок не подселяем: иначе первый опрос отбросит их все как «нет шаблона».
+  function initPainted() {
+    fetch('/assets/coloring/manifest.json')
+      .then(function (r) { return r.json(); })
+      .then(function (m) {
+        m.fish.forEach(function (f) { paintedSpec[f.name] = { length: f.length }; });
+      })
+      .catch(function () { console.error('не загрузился манифест раскрасок'); })
+      .then(function () {
+        pollPainted();
+        setInterval(pollPainted, 5000);
+      });
+  }
+
+  // -- смотрины купленного пака ---------------------------------------------
+  // /t/<id>?pack — временный режим, чтобы вживую оценить модели из пака
+  // CGTrader: по одной штуке каждого вида, со своими заводскими текстурами
+  // и скелетной анимацией. К игровым рыбкам отношения не имеет.
+  function loadPack() {
+    fetch('/api/pack')
+      .then(function (r) { return r.json(); })
+      .then(function (list) {
+        packList = list;
+        list.forEach(function (item) { spawnPack(item.name); });
+      })
+      .catch(function () {
+        console.error('пак не собран — запусти tools/convert-pack.ps1');
+      });
+  }
+
+  function buildLights() {
+    scene.add(new THREE.AmbientLight(0x223444, 0.16));
+
+    // свет сверху, как сквозь толщу воды
+    spot = new THREE.SpotLight(0xe8f7ff, 3.4, 48, 0.62, 0.42, 1.1);
+    spot.position.set(0, 15.2, -1.5);
+    spot.target.position.set(0, 0, 0);
+    scene.add(spot, spot.target);
+
+    // подсветка спереди, чтобы рыбы не были силуэтами на фоне картинки
+    fill = new THREE.DirectionalLight(0x9fc9e0, 0.35);
+    fill.position.set(12, 8, 20);
+    scene.add(fill);
+  }
+
+  // -- снимок для карточки на главной ---------------------------------------
+  // Карточка в списке аквариумов показывает не абстрактную иконку, а сам
+  // аквариум. Снять его может только сцена — поэтому она сама отправляет
+  // кадр на сервер, когда состав рыбок или фон изменились.
+  //
+  // Отсюда и ограничение: пока аквариум никто не открывал, снимка нет.
+  // На этот случай карточка показывает фон аквариума — он известен всегда.
+  var SHOT_W = 480, SHOT_H = 270;
+  var SHOT_GAP = 10;     // не чаще раза в столько секунд
+  var shotWanted = 0;    // время, начиная с которого стоит снять кадр
+  var shotLast = -99;
+  var shotEver = false;  // сняли ли хоть раз за эту сессию
+  var shotCanvas = null;
+
+  // Просим снимок не сразу: рыбка появляется асинхронно, ей надо доплыть
+  // до кадра, а фон — догрузиться. Кадр в момент изменения был бы пустым.
+  function wantShot(delay) {
+    var at = clock ? clock.elapsedTime + delay : delay;
+    if (!shotWanted || at > shotWanted) shotWanted = at;
+  }
+
+  // rerender = отрисовать сцену прямо сейчас. Нужно, когда снимаем не изнутри
+  // цикла: содержимое канваса живёт только до конца текущего кадра.
+  function takeShot(rerender, beacon) {
+    if (!shotCanvas) {
+      shotCanvas = document.createElement('canvas');
+      shotCanvas.width = SHOT_W;
+      shotCanvas.height = SHOT_H;
+    }
+    if (rerender) renderer.render(scene, camera);
+
+    // Берём из кадра центральную часть нужных пропорций, а не весь кадр
+    // целиком. С телефона аквариум открывают вертикально, и растянутый на
+    // карточку 16:9 портретный снимок выглядел бы сплющенным: рыбы плоские,
+    // фон смят. Центр же всегда там, где смотрит камера.
+    var src = renderer.domElement;
+    var scale = Math.max(SHOT_W / src.width, SHOT_H / src.height);
+    var cw = Math.min(src.width, SHOT_W / scale);
+    var ch = Math.min(src.height, SHOT_H / scale);
+    shotCanvas.getContext('2d').drawImage(
+      src, (src.width - cw) / 2, (src.height - ch) / 2, cw, ch, 0, 0, SHOT_W, SHOT_H);
+    var body = JSON.stringify({ image: shotCanvas.toDataURL('image/jpeg', 0.72) });
+    shotEver = true;
+    shotLast = clock ? clock.elapsedTime : 0;
+    shotWanted = 0;
+
+    // Уходя со страницы, обычный fetch браузер может не успеть отправить.
+    if (beacon && navigator.sendBeacon) {
+      navigator.sendBeacon(Tank.api + '/preview', new Blob([body], { type: 'application/json' }));
+      return;
+    }
+    fetch(Tank.api + '/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body
+    }).catch(function () { /* не критично: карточка покажет фон */ });
+  }
+
+  // Вкладку сворачивают или уходят с неё — снимаем прямо сейчас, не дожидаясь
+  // отложенного кадра. Это главный путь, а не запасной: в фоновой вкладке
+  // браузер останавливает requestAnimationFrame, и отложенный снимок просто
+  // никогда бы не сработал. Типичный сценарий — открыл аквариум, ушёл менять
+  // фон в админке и больше не возвращался.
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'hidden') return;
+    if (!renderer || !scene) return;
+    if (!shotWanted && shotEver) return;   // снимать нечего
+    takeShot(true, true);
+  });
+
+  // -- цикл -----------------------------------------------------------------
+  function animate() {
+    requestAnimationFrame(animate);
+    var dt = Math.min(clock.getDelta(), 0.05);
+    var t = clock.elapsedTime;
+    uTime.value = t;
+
+    for (var i = 0; i < fishes.length; i++) fishes[i].update(dt, t);
+    if (foods.length) updateFoods(dt, t);
+
+    renderer.render(scene, camera);
+
+    // Снимаем сразу после render, пока кадр не стёрт, и не чаще, чем раз
+    // в SHOT_GAP секунд: подряд идущие правки не должны молотить сервер.
+    if (shotWanted && t > shotWanted && t - shotLast > SHOT_GAP) takeShot(false, false);
+  }
+
+  function onResize() {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+    fitBackground();
+  }
+
+  // -- настройки сцены: живут в админке, сюда приезжают с сервера -----------
+  var appliedBg;    // undefined = ещё не применяли
+  var seenFeedAt;   // undefined = первый поллинг: старое кормление не повторяем
+
+  // Принимаем готовый URL, а не имя файла: фон может лежать и во встроенных
+  // assets/backgrounds, и в загруженных data/backgrounds — где именно, знает сервер.
+  function applyBackground(url) {
+    if (url === appliedBg) return;
+    appliedBg = url;
+    if (!url) {
+      new THREE.TextureLoader().load('/assets/backgrounds/01-0.png', function(tex) { scene.background = tex; fitBackground(); });
+      return;
+    }
+    new THREE.TextureLoader().load(url, function (tex) {
+      if (appliedBg !== url) return;   // пока грузилась, выбрали другую
+      tex.encoding = THREE.sRGBEncoding;
+      scene.background = tex;
+      fitBackground();
+      wantShot(1);
+    });
+  }
+
+  // Режим cover: фон заполняет экран с обрезкой краёв, без растяжения.
+  // Кадрируем через repeat/offset — шейдер фона уважает матрицу текстуры.
+  function fitBackground() {
+    var tex = scene.background;
+    if (!tex || !tex.isTexture || !tex.image || !tex.image.width) return;
+    var screenAspect = innerWidth / innerHeight;
+    var imageAspect = tex.image.width / tex.image.height;
+    if (screenAspect > imageAspect) {
+      // экран шире картинки: вся ширина, режем верх и низ
+      var ry = imageAspect / screenAspect;
+      tex.repeat.set(1, ry);
+      tex.offset.set(0, (1 - ry) / 2);
+    } else {
+      var rx = screenAspect / imageAspect;
+      tex.repeat.set(rx, 1);
+      tex.offset.set((1 - rx) / 2, 0);
+    }
+  }
+
+  function applySettings(s) {
+    applyBackground(s.backgroundUrl || null);
+
+
+    // кормление: сервер отдаёт время последнего нажатия «Покормить»
+    if (seenFeedAt === undefined) seenFeedAt = s.feedAt || 0;
+    else if (s.feedAt && s.feedAt !== seenFeedAt) { seenFeedAt = s.feedAt; feedNow(); }
+
+  }
+
+  function pollSettings() {
+    fetch(Tank.api + '/settings').then(function (r) { return r.json(); })
+      .then(applySettings)
+      .catch(function () { /* сервер без API — остаются значения по умолчанию */ });
+  }
+
+  function initSettings() {
+    pollSettings();
+    setInterval(pollSettings, 3000);
+  }
+
+  // -- меню -----------------------------------------------------------------
+  // Аквариум во весь экран без единой кнопки — красиво, но это тупик: человек,
+  // который только что завёл аквариум, видит пустую воду и не понимает, что
+  // делать дальше. Поэтому клик в любом месте показывает и убирает меню со
+  // всеми дорогами: печать раскрасок, съёмка, управление, список аквариумов.
+  var menu = document.getElementById('menu');
+  var menuCard = document.getElementById('menu-card');
+  var tapHint = document.getElementById('taphint');
+  var HINT_KEY = 'aqua.menuSeen';
+
+  var menuUsed = false;      // открывали ли меню руками — тогда сами не лезем
+  var fishCount = null;      // сколько рыбок в аквариуме, null — ещё не знаем
+
+  I18N.mount(document.getElementById('lang'));
+
+  // Витрина: общий аквариум по ссылке «Посмотреть» с главной. Меню урезано,
+  // чтобы гость не отправил рыбку ребёнка в чужой аквариум: остаются корм,
+  // «заведи свой» и дорога к списку. Имя и пароль витрины тоже не трогают.
+  var DEMO = /(^|[?&])demo(=|&|$)/.test(location.search);
+  // Открыто по пину с главной (?tv): это экран-витрина, меню в пустом
+  // аквариуме само не выскакивает — им управляют с телефона, а тут смотрят.
+  var TV = /(^|[?&])tv(=|&|$)/.test(location.search);
+  if (DEMO) {
+    // «Мои аквариумы» тоже прячем: он вёл туда же, куда «Завести свой».
+    ['m-capture', 'm-pack', 'm-print', 'm-bg', 'm-fish', 'm-share', 'm-home']
+      .forEach(function (id) { document.getElementById(id).hidden = true; });
+    document.getElementById('m-demo').hidden = false;
+    document.getElementById('m-own').hidden = false;
+    document.getElementById('m-key').hidden = true;
+    var ren = document.getElementById('m-rename');
+    ren.disabled = true;
+    ren.querySelector('.pen').hidden = true;
+  }
+
+  // Ссылку отдаём целиком: по коду аквариум открывают на другом устройстве,
+  // но набирать адрес руками никому не хочется.
+  function tankLink() { return location.origin + Tank.url; }
+
+  function copyLink(done) {
+    // Буфера может не быть вовсе: с телефона аквариум открывают по http,
+    // а там браузер эту возможность не даёт. Тогда показываем ссылку
+    // выделенной — скопировать вручную всё равно можно.
+    var manual = function () {
+      Modal.prompt({
+        title: I18N.t('menu.link.title'),
+        text: I18N.t('menu.link.text'),
+        value: tankLink(), mono: true, confirmLabel: I18N.t('menu.link.ok')
+      });
+    };
+    if (navigator.clipboard) navigator.clipboard.writeText(tankLink()).then(done, manual);
+    else manual();
+  }
+
+  // QR рисует вендорная библиотека, сразу в SVG — он резкий на любом экране.
+  // Белую подложку даёт .qrbox: без неё сканер кода на тёмном не видит.
+  function drawQr(host, text) {
+    if (host.firstChild) return;   // уже нарисован, содержимое не меняется
+    try {
+      var qr = qrcode(0, 'M');
+      qr.addData(text);
+      qr.make();
+      host.innerHTML = qr.createSvgTag(4, 0);
+    } catch (e) {
+      // Без QR пункт живёт: остаются ссылка и код. Прячем вместе с подписью —
+      // «наведи камеру на этот код» без кода читается как издевательство.
+      host.parentNode.style.display = 'none';
+    }
+  }
+
+  function hintSeen() {
+    try { return localStorage.getItem(HINT_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  function showMenu() {
+    menu.hidden = false;
+    tapHint.hidden = true;
+  }
+
+  function hideMenu() {
+    showMainView();      // в следующий раз меню открывается с начала
+    menu.hidden = true;
+    // Подсказку возвращаем тому, кто ещё ни разу не вызвал меню сам: меню,
+    // открывшееся само, о том, что его вызывают кликом, ничего не говорит.
+    if (!hintSeen()) tapHint.hidden = false;
+  }
+
+  function toggleMenu() {
+    menuUsed = true;
+    try { localStorage.setItem(HINT_KEY, '1'); } catch (e) { /* приватный режим */ }
+    if (menu.hidden) showMenu(); else hideMenu();
+  }
+
+  // Окно поверх меню (переименование, запрос пароля) живёт в конце body,
+  // то есть вне карточки. Без этой проверки любое нажатие в нём — хоть
+  // «Отмена», хоть «Сохранить» — заодно закрывало бы и само меню.
+  function inModal(el) {
+    return !!(el && el.closest && el.closest('.mdl-back'));
+  }
+
+  // Клик по сцене — переключатель. Внутри карточки у каждой кнопки своё дело,
+  // а по затемнению вокруг неё меню закрывается.
+  document.addEventListener('click', function (e) {
+    if (menuCard.contains(e.target) || inModal(e.target)) return;
+    toggleMenu();
+  });
+
+  addEventListener('keydown', function (e) {
+    // Escape при открытом окне закрывает окно — меню под ним остаётся.
+    // Окно к этому моменту уже убрано из документа, поэтому смотрим не на
+    // него, а на признак «нажатие разобрали до нас».
+    if (e.key === 'Escape' && !e.defaultPrevented && !menu.hidden) hideMenu();
+  });
+
+  document.getElementById('m-close').onclick = hideMenu;
+
+  // -- выбор покупной рыбки --
+  // Раньше жил в админке, а смотреть, кого запускаешь, приходилось в другой
+  // вкладке. Здесь набор открывается прямо поверх аквариума, и выбранная
+  // рыбка появляется в кадре, не дожидаясь опроса.
+  var menuMain = document.getElementById('menu-main');
+  var menuPack = document.getElementById('menu-pack');
+  var menuCapture = document.getElementById('menu-capture');
+  var capFrame = document.getElementById('capframe');
+  var menuBg = document.getElementById('menu-bg');
+  var bgFrame = document.getElementById('bgframe');
+  var menuFish = document.getElementById('menu-fish');
+  // Имя с запасом: fishFrame в этом файле уже занят разбором геометрии рыбы.
+  var fishListFrame = document.getElementById('fishframe');
+  var menuPrint = document.getElementById('menu-print');
+  var printFrame = document.getElementById('printframe');
+  var menuShare = document.getElementById('menu-share');
+  var packGrid = document.getElementById('packgrid');
+  var packListed = false;
+
+  // Виды карточки: главный список и то, что открывается из него. Прячем все
+  // разом и показываем один — иначе с каждым новым видом забывается строка.
+  var views = [menuMain, menuPack, menuCapture, menuBg, menuFish, menuPrint, menuShare];
+
+  function showView(view, wide) {
+    views.forEach(function (v) { v.hidden = v !== view; });
+    menuCard.classList.toggle('wide', !!wide);
+  }
+
+  function showMainView() { showView(menuMain, false); }
+
+  // Врезку заводим при первом открытии: пока её не позвали, страница не
+  // грузится и не тянет свой three.js и свои картинки.
+  function frameUp(frame, url) {
+    if (!frame.src) frame.src = url;
+    return frame;
+  }
+
+  // Съёмка, управление и раскраски — те же страницы, что и по своим адресам.
+  // Второй такой же код внутри сцены начал бы расходиться с ними на первой
+  // же правке. Сцена подхватит изменения опросом: фон за три секунды,
+  // рыбки за пять.
+  function showCaptureView() {
+    showView(menuCapture, false);
+    var f = frameUp(capFrame, Tank.url + '/capture?embed=1');
+    // Врезка осталась на том экране, где её бросили: просим начать сначала.
+    if (f.dataset.up && f.contentWindow) f.contentWindow.postMessage({ aqua: 'reset' }, location.origin);
+    f.dataset.up = '1';
+  }
+
+  // Фон и удаление рыбок — разные пункты: первое меняют часто и без пароля,
+  // второе необратимо и под паролем. Страница одна, но каждый раз показывает
+  // только свою половину.
+  function showBgView() {
+    showView(menuBg, true);
+    frameUp(bgFrame, Tank.url + '/admin?embed=1&only=bg');
+  }
+
+  function showFishView() {
+    showView(menuFish, true);
+    frameUp(fishListFrame, Tank.url + '/admin?embed=1&only=fish');
+  }
+
+  function showPrintView() {
+    showView(menuPrint, true);
+    frameUp(printFrame, '/print.html?embed=1');
+  }
+
+  function showPackView() {
+    showView(menuPack, true);
+    listPack();
+  }
+
+  // -- «Открыть на другом экране» --
+  // Весь перенос между устройствами собран в одном пункте: QR — телефону
+  // с камерой, ссылка — мессенджеру, код — телевизору, где камеры нет.
+  function showShareView() {
+    showView(menuShare, false);
+    drawQr(document.getElementById('share-qr'), tankLink());
+    // Пин показываем свежим на каждое открытие: старый мог истечь, пока
+    // меню лежало закрытым. Сервер всё равно вернёт живой тот же самый.
+    document.getElementById('pinbox').hidden = true;
+    pinBtn.hidden = false;
+    pinBtn.querySelector('b').textContent = I18N.t('menu.share.pin');
+  }
+
+  // Код для телевизора: пять цифр вместо десяти знаков — их набирают пультом.
+  // Выдаётся по нажатию, а не при открытии вида: пины из небольшого пула,
+  // и жечь их на каждое «посмотреть меню» не стоит.
+  var pinBtn = document.getElementById('m-tvpin');
+  pinBtn.onclick = function () {
+    pinBtn.disabled = true;
+    fetch(Tank.api + '/pin', { method: 'POST' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (d) {
+        document.getElementById('pin-digits').textContent = d.pin;
+        document.getElementById('pinbox').hidden = false;
+        pinBtn.hidden = true;
+      })
+      .catch(function () {
+        pinBtn.querySelector('b').textContent = I18N.t('menu.share.pin.fail');
+      })
+      .then(function () { pinBtn.disabled = false; });
+  };
+
+  var copyItem = document.getElementById('m-copylink');
+  copyItem.onclick = function () {
+    copyLink(function () {
+      var b = copyItem.querySelector('b');
+      b.textContent = I18N.t('menu.copied');
+      setTimeout(function () { b.textContent = I18N.t('menu.share.copy'); }, 2000);
+    });
+  };
+
+  // Системное «поделиться» есть не везде; где нет — кнопки просто нет.
+  var sendItem = document.getElementById('m-sendlink');
+  if (navigator.share) {
+    sendItem.hidden = false;
+    sendItem.onclick = function () {
+      navigator.share({ title: tankName, url: tankLink() })
+        .catch(function () { /* передумали — не ошибка */ });
+    };
+  }
+
+  function addPackFish(name, btn) {
+    btn.disabled = true;
+    Tank.send(Tank.api + '/fish', { body: JSON.stringify({ type: 'pack', model: name }) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res.error) throw new Error(res.error);
+        hideMenu();
+        pollPainted();       // рыбка нужна сейчас, а не через пять секунд
+      })
+      .catch(function () {
+        var t = btn.querySelector('.t');
+        if (t) t.textContent = I18N.t('menu.picker.failed');
+      })
+      .then(function () { btn.disabled = false; });
+  }
+
+  // Названия видов берём из манифеста раскрасок: там они на трёх языках и
+  // там же единственный список — в pack.json лежат только русские подписи.
+  var sheetTitles = {};
+
+  function packTitle(item) {
+    var t = sheetTitles[item.name];
+    return (t && (t[I18N.lang] || t.ru)) || item.title || item.name;
+  }
+
+  function listPack() {
+    if (packListed) return;
+    packListed = true;
+    fetch('/assets/coloring/manifest.json')
+      .then(function (r) { return r.json(); })
+      .then(function (m) {
+        (m.fish || []).forEach(function (f) { sheetTitles[f.name] = f.titles || { ru: f.title }; });
+      })
+      .catch(function () { /* останутся русские подписи из пака */ })
+      .then(fillPack);
+  }
+
+  function fillPack() {
+    FishThumbs.withPack(function (idx) {
+      // Только виды с листом раскраски: набор и раскраски — один и тот же
+      // зоопарк, иначе ребёнок видит в аквариуме рыбу, которую не раскрасить.
+      var list = (idx.__list || []).filter(function (m) { return m.sheet; });
+      packGrid.textContent = '';
+      if (!list.length) {
+        packGrid.innerHTML = '<p class="who">' + I18N.t('menu.picker.nopack') + '</p>';
+        return;
+      }
+      list.forEach(function (item) {
+        var b = document.createElement('button');
+        b.className = 'packitem';
+        b.type = 'button';
+        b.innerHTML = '<span class="ph">' + I18N.t('menu.picker.drawing') + '</span><span class="t"></span>';
+        b.querySelector('.t').textContent = packTitle(item);
+        b.onclick = function () { addPackFish(item.name, b); };
+        packGrid.appendChild(b);
+
+        FishThumbs.get(item, function (url) {
+          var slot = b.querySelector('.ph');
+          if (!slot) return;
+          if (!url) { slot.textContent = '??'; return; }
+          var img = document.createElement('img');
+          img.src = url;
+          img.alt = '';
+          slot.parentNode.replaceChild(img, slot);
+        });
+      });
+    });
+  }
+
+  // Переименование. Имя — единственная настройка, которую правят, глядя на
+  // сам аквариум, поэтому она здесь, а не в управлении. Пароль спрашиваем
+  // только если правка вернулась отказом: на своём устройстве его уже знают.
+  var tankName = I18N.t('tank.doctitle');
+
+  function sendName(name) {
+    return Tank.send(Tank.api + '/meta', { method: 'PATCH', body: JSON.stringify({ name: name }) });
+  }
+
+  function applyName(name) {
+    tankName = name;
+    document.getElementById('m-name').textContent = name;
+    document.title = name;
+  }
+
+  document.getElementById('m-rename').onclick = function () {
+    Modal.prompt({
+      title: I18N.t('menu.rename.title'),
+      text: I18N.t('menu.rename.text'),
+      value: tankName,
+      maxLength: 60,
+      confirmLabel: I18N.t('menu.rename.ok')
+    }).then(function (name) {
+      if (name === null) return;
+      name = name.trim();
+      if (!name || name === tankName) return;
+
+      var save = function (r) {
+        if (r.ok) return r.json().then(function (m) { applyName(m.name); });
+        if (r.status !== 401 && r.status !== 429) return;
+        return Tank.askPass(Tank.id, { title: I18N.t('menu.pass.title') }).then(function (got) {
+          if (!got) return;
+          return sendName(name).then(function (r2) {
+            if (r2.ok) return r2.json().then(function (m) { applyName(m.name); });
+          });
+        });
+      };
+
+      return sendName(name).then(save, function () {
+        Modal.alert({ title: I18N.t('menu.rename.fail'), text: I18N.t('menu.fail.server') });
+      });
+    });
+  };
+
+  // -- доступ: код, ссылка, пароль --
+  // Всё про «кто и что может» собрано здесь, рядом с самим аквариумом:
+  // код показывают гостям, пароль оставляют себе.
+  var keyBtn = document.getElementById('m-key');
+  var tankLocked = true;
+
+  function renderKey() {
+    keyBtn.classList.toggle('warn', !tankLocked);
+    keyBtn.textContent = I18N.t(tankLocked ? 'menu.pass' : 'menu.pass.set');
+  }
+
+  function savePass(value) {
+    return Tank.send(Tank.api + '/password', { body: JSON.stringify({ password: value }) });
+  }
+
+  function askNewPass(titleKey) {
+    return Modal.prompt({
+      title: I18N.t(titleKey),
+      text: I18N.t('menu.newpass.text'),
+      value: '', placeholder: I18N.t('menu.newpass.ph'), maxLength: 60, mono: true,
+      confirmLabel: I18N.t('menu.rename.ok')
+    }).then(function (value) {
+      if (value === null) return;
+      value = value.trim();
+      if (value.length < 4) {
+        return Modal.alert({
+          title: I18N.t('menu.newpass.short.title'),
+          text: I18N.t('menu.newpass.short.text')
+        });
+      }
+
+      var saved = function (r) {
+        if (!r.ok) return Modal.alert({ title: I18N.t('menu.fail.title'), text: I18N.t('menu.fail.pass') });
+        Tank.setPass(Tank.id, value);
+        tankLocked = true;
+        renderKey();
+        return Modal.alert({
+          title: I18N.t('menu.newpass.saved.title'),
+          text: I18N.t('menu.newpass.saved.text'),
+          fields: [{ label: I18N.t('menu.newpass.saved.field'), value: value }],
+          okLabel: I18N.t('menu.newpass.saved.ok')
+        });
+      };
+
+      return savePass(value).then(function (r) {
+        // Пароль меняет тот, кто знает старый: на чужом устройстве спросим.
+        if (r.status !== 401 && r.status !== 429) return saved(r);
+        return Tank.askPass(Tank.id, {
+          title: I18N.t('menu.oldpass.title'),
+          text: I18N.t('menu.oldpass.text')
+        }).then(function (got) {
+          if (!got) return;
+          return savePass(value).then(saved);
+        });
+      }, function () {
+        Modal.alert({ title: I18N.t('menu.fail.title'), text: I18N.t('menu.fail.server') });
+      });
+    });
+  }
+
+  function showAccess() {
+    return Modal.confirm({
+      title: I18N.t('menu.access.title'),
+      text: I18N.t('menu.access.text'),
+      fields: [
+        { label: I18N.t('home.created.code'), value: Tank.id },
+        { label: I18N.t('home.created.pass'), value: Tank.pass() || '—' }
+      ],
+      cancelLabel: I18N.t('menu.access.done'),
+      confirmLabel: I18N.t('menu.access.change'),
+      kind: 'go'
+    }).then(function (change) {
+      if (change) return askNewPass('menu.newpass.title');
+    });
+  }
+
+  keyBtn.onclick = function () {
+    if (!tankLocked) return askNewPass('menu.newpass.first');
+    if (Tank.pass()) return showAccess();
+    // Пароля на этом устройстве нет — сначала убедимся, что его знают.
+    Tank.askPass(Tank.id, { title: I18N.t('menu.pass.title') })
+      .then(function (got) { if (got) showAccess(); });
+  };
+
+  // Язык переключили — обновляем то, что собрано скриптом, а не разметкой.
+  addEventListener('aqua:lang', function () {
+    renderKey();
+    setFishCount(fishCount || 0);
+    packListed = false;
+    packGrid.textContent = '';
+    if (!menuPack.hidden) listPack();
+  });
+
+  document.getElementById('m-pack').onclick = showPackView;
+  document.getElementById('m-packback').onclick = showMainView;
+  document.getElementById('m-capture-room').onclick = function() { showView(menuCapture, true); frameUp(capFrame, '/t/' + Tank.id + '/capture?mode=room'); };
+  document.getElementById('m-capture').onclick = showCaptureView;
+  document.getElementById('m-capback').onclick = showMainView;
+  document.getElementById('m-bg').onclick = showBgView;
+  document.getElementById('m-bgback').onclick = showMainView;
+  document.getElementById('m-fish').onclick = showFishView;
+  document.getElementById('m-fishback').onclick = showMainView;
+  document.getElementById('m-print').onclick = showPrintView;
+  document.getElementById('m-printback').onclick = showMainView;
+  document.getElementById('m-share').onclick = showShareView;
+  document.getElementById('m-shareback').onclick = showMainView;
+
+  // Врезка сообщает, что рыбку выпустили, — показываем её сразу.
+  addEventListener('message', function (e) {
+    if (e.origin !== location.origin || !e.data) return;
+    if (e.data.aqua === 'fish-added') { pollPainted(); wantShot(2); }
+    // Врезка сообщает свою высоту — карточка перестаёт быть с пустым низом.
+    // Спрятанная врезка присылает ноль: её высоту не трогаем, иначе при
+    // возврате карточка схлопнулась бы в полоску.
+    if (e.data.aqua === 'height' && e.data.height > 80) {
+      [capFrame, bgFrame, fishListFrame, printFrame].forEach(function (f) {
+        if (e.source !== f.contentWindow) return;
+        f.style.height = Math.min(e.data.height + 4, innerHeight * 0.78) + 'px';
+      });
+    }
+  });
+
+  // Корм сыплем сразу, не дожидаясь опроса настроек: ждать три секунды после
+  // нажатия — это выглядит как «кнопка не работает». Серверу всё равно
+  // сообщаем, чтобы корм увидели и на других открытых экранах.
+  document.getElementById('m-feed').onclick = function () {
+    hideMenu();
+    feedNow();
+    fetch(Tank.api + '/feed', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (r) { seenFeedAt = r.feedAt; })   // уже покормили, по опросу не повторяем
+      .catch(function () { /* без сервера корм всё равно упал */ });
+  };
+
+  function fishWord(n) {
+    return n ? I18N.plural(n, 'fish') : I18N.t('tank.nofish');
+  }
+
+  // Пустой аквариум открывает меню сам — один раз и только если человек
+  // до него не добрался раньше. Дальше меню только по клику.
+  function setFishCount(n) {
+    var first = fishCount === null;
+    fishCount = n;
+    document.getElementById('m-count').textContent = fishWord(n);
+    if (first && !n && !menuUsed && !TV) showMenu();
+    else if (first && !hintSeen()) tapHint.hidden = false;
+  }
+
+  function fail(html) {
+    var l = document.getElementById('loading');
+    if (l) { l.hidden = false; l.innerHTML = html; }
+  }
+
+  function startScene() {
+    try {
+      init();
+    } catch (err) {
+      fail(I18N.t('tank.crash', { msg: String(err && err.message || err) }));
+    }
+  }
+
+  // Сначала убеждаемся, что аквариум вообще есть. Иначе сцена соберётся,
+  // все запросы вернут 404, и человек будет смотреть в чёрный экран,
+  // не понимая, что ссылка устарела или в коде опечатка.
+  fetch(Tank.api + '/meta').then(function (r) {
+    if (!r.ok) {
+      Tank.forget(Tank.id);
+      fail(I18N.t('tank.notank') +
+           '<br><a href="/" style="color:#58d6ff">' + I18N.t('tank.tolist') + '</a>');
+      return;
+    }
+    return r.json().then(function (meta) {
+      applyName(meta.name);
+      // Управление под паролем, и на чужом устройстве его не знают —
+      // честнее предупредить до перехода, чем показать замок после.
+      tankLocked = !!meta.locked;
+      renderKey();
+      if (meta.locked && !Tank.pass()) {
+        document.querySelector('#m-fish i').textContent = I18N.t('menu.fish.sub.pass');
+      }
+      startScene();
+    });
+  }).catch(function () {
+    fail(I18N.t('tank.noserver'));
+  });
+})();
+</script>
+
+<script>
+  setTimeout(() => {
+    try { document.querySelector('#m-capture b').innerText = 'Добавить персонажа'; } catch(e){}
+    try { document.querySelector('#m-capture i').innerText = 'Сфотографируй вырезанного героя'; } catch(e){}
+    try { document.querySelector('#m-pack b').innerText = 'Коллекция'; } catch(e){}
+    try { document.querySelector('#m-pack i').innerText = 'Добавить тестовую модель'; } catch(e){}
+    try { document.querySelector('#m-feed b').innerText = 'Поиграть'; } catch(e){}
+    try { document.querySelector('#m-feed i').innerText = 'Персонаж совершит действие'; } catch(e){}
+    try { document.querySelector('#m-print b').innerText = 'Скачать шаблоны'; } catch(e){}
+    try { document.querySelector('#m-print i').innerText = 'Журналы с локациями'; } catch(e){}
+    try { document.querySelector('#m-bg b').innerText = 'Сменить локацию'; } catch(e){}
+    try { document.querySelector('#m-bg i').innerText = 'Выбрать другую комнату из журнала'; } catch(e){}
+    try { document.querySelector('#m-fish b').innerText = 'Убрать объекты'; } catch(e){}
+    try { document.querySelector('#m-fish i').innerText = 'Очистить комнату'; } catch(e){}
+    try { document.querySelector('#m-list b').innerText = 'Мои миры'; } catch(e){}
+    try { document.querySelector('#m-list i').innerText = 'Другие комнаты'; } catch(e){}
+    try { document.querySelector('.menu h2 span#m-name').innerText = 'Мой мир (Тест)'; } catch(e){}
+  }, 100);
+</script>
+</body>
+
+</html>

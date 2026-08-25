@@ -867,14 +867,14 @@ function pageFor(url) {
   if (!m || !TANK_ID_RE.test(m[1])) return null;
   if (m[2] === 'admin') return 'admin.html';
   if (m[2] === 'capture') return 'capture.html';
-  return 'demos/realistic-tank.html';
+  return 'demos/room-tank.html';
 }
 
 // Раздаём перечисленное, а не всё, что лежит рядом с сервером. Иначе по сети
 // уезжает и .git, и детские рисунки из data/, и купленный пак моделей —
 // папка с ним лежит в том же каталоге проекта.
 const STATIC_DIRS = ['/assets/', '/vendor/', '/demos/', '/tools/'];
-const STATIC_FILES = ['/print.html', '/terms.html', '/favicon.ico'];
+const STATIC_FILES = ['/print.html', '/terms.html', '/favicon.ico', '/test-scan.html'];
 // Из data наружу смотрят только две вещи: свои фоны и снимок сцены.
 // Текстуры рыбок отдаёт API, всё остальное — не для сети.
 const DATA_FILE_RE = /^\/data\/tanks\/([^/]+)\/(?:preview\.jpg|backgrounds\/[\w.-]+)$/;

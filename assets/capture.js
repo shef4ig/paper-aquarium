@@ -332,6 +332,7 @@
       mctx.lineCap = 'round';
       mctx.stroke();
       var mask = mctx.getImageData(0, 0, TEX_W, TH).data;
+      if (location.search.indexOf('mode=room') !== -1) { mask = new Uint8Array(mask.length); mask.fill(255); }
 
       tctx.drawImage(sheet,
         cropMM.x0 * PX_PER_MM, cropMM.y0 * PX_PER_MM, cropW * PX_PER_MM, cropH * PX_PER_MM,
