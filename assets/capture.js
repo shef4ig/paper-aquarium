@@ -478,5 +478,210 @@
     });
   }
 
-  window.FishCapture = { processPhoto: processPhoto };
+  function processMatPhoto(source, manifest) {
+    return new Promise(function(resolve, reject) {
+      var sw = source.width || source.naturalWidth || source.videoWidth;
+      var sh = source.height || source.naturalHeight || source.videoHeight;
+      var k = Math.min(1, WORK_MAX / Math.max(sw, sh));
+      var W = Math.round(sw * k), H = Math.round(sh * k);
+
+      var photo = document.createElement('canvas');
+      photo.width = W; photo.height = H;
+      var pctx = photo.getContext('2d', { willReadFrequently: true });
+      pctx.drawImage(source, 0, 0, W, H);
+      var data = pctx.getImageData(0, 0, W, H).data;
+
+      var gray = new Float32Array(W * H), mean = 0;
+      for (var i = 0; i < W * H; i++) {
+        gray[i] = (data[i * 4] * 0.35 + data[i * 4 + 1] * 0.5 + data[i * 4 + 2] * 0.15);
+        mean += gray[i];
+      }
+      mean /= W * H;
+
+      var lookup = buildLookup(manifest);
+      var byKind = null, bestFound = 0;
+      var tries = [0.55, 0.45, 0.65, 0.72, 0.38];
+      var kind = 'mat';
+      var foundKind = false;
+      for (var t = 0; t < tries.length && !foundKind; t++) {
+        var found = findMarkers(gray, W, H, mean * tries[t], lookup);
+        bestFound = Math.max(bestFound, found.length);
+        var groups = {};
+        found.forEach(function (f) {
+          groups[f.kind] = groups[f.kind] || {};
+          groups[f.kind][f.corner] = f.center;
+        });
+        if (groups[kind] && ['tl', 'tr', 'bl', 'br'].every(function (c) { return groups[kind][c]; })) {
+          foundKind = true;
+          byKind = groups[kind];
+          break;
+        }
+      }
+
+      if (!foundKind) {
+        reject(new Error(window.I18N
+          ? window.I18N.t('cap.err.markers', { n: bestFound })
+          : 'Нашёл меток: ' + bestFound + ' из 4. Сфотографируй весь лист целиком, ' +
+            'при хорошем свете и без бликов — все четыре чёрных квадрата должны быть в кадре.'));
+        return;
+      }
+
+      var mmPos = manifest.sheet.markerPositions;
+      var half = manifest.sheet.marker.size / 2;
+      var order = ['tl', 'tr', 'br', 'bl'];
+      var srcPts = order.map(function (c) { return [(mmPos[c][0] + half) * PX_PER_MM, (mmPos[c][1] + half) * PX_PER_MM]; });
+      var dstPts = order.map(function (c) { return byKind[c]; });
+      var Hrect = homography(srcPts, dstPts);
+
+      var SW = Math.round(manifest.sheet.w * PX_PER_MM);
+      var SH = Math.round(manifest.sheet.h * PX_PER_MM);
+      var sheet = document.createElement('canvas');
+      sheet.width = SW; sheet.height = SH;
+      var sctx = sheet.getContext('2d', { willReadFrequently: true });
+      var simg = sctx.createImageData(SW, SH);
+      for (var y = 0; y < SH; y++) {
+        for (var x = 0; x < SW; x++) {
+          var pt = applyH(Hrect, x, y);
+          var xi = Math.round(pt[0]), yi = Math.round(pt[1]);
+          var o = (y * SW + x) * 4;
+          if (xi >= 0 && yi >= 0 && xi < W && yi < H) {
+            var si = (yi * W + xi) * 4;
+            simg.data[o] = data[si]; simg.data[o + 1] = data[si + 1]; simg.data[o + 2] = data[si + 2];
+          } else {
+            simg.data[o] = simg.data[o + 1] = simg.data[o + 2] = 255;
+          }
+          simg.data[o + 3] = 255;
+        }
+      }
+
+      var wr = [0, 0, 0], wn = 0;
+      var wa = manifest.sheet.work;
+      for (var wy = wa.y0; wy < wa.y1; wy += 3) {
+        for (var wx = wa.x0; wx < wa.x1; wx += 3) {
+          if (wx > wa.x0 + 10 && wx < wa.x1 - 10 && wy > wa.y0 + 10 && wy < wa.y1 - 10) continue;
+          var pi = ((wy * PX_PER_MM | 0) * SW + (wx * PX_PER_MM | 0)) * 4;
+          var lum = (simg.data[pi] + simg.data[pi + 1] + simg.data[pi + 2]) / 3;
+          if (lum > 90) { wr[0] += simg.data[pi]; wr[1] += simg.data[pi + 1]; wr[2] += simg.data[pi + 2]; wn++; }
+        }
+      }
+      var gain = [1, 1, 1];
+      if (wn > 20) {
+        for (var ch = 0; ch < 3; ch++) gain[ch] = Math.min(2.4, Math.max(0.8, 247 / (wr[ch] / wn)));
+      }
+      for (var p2 = 0; p2 < SW * SH; p2++) {
+        simg.data[p2 * 4] = Math.min(255, simg.data[p2 * 4] * gain[0]);
+        simg.data[p2 * 4 + 1] = Math.min(255, simg.data[p2 * 4 + 1] * gain[1]);
+        simg.data[p2 * 4 + 2] = Math.min(255, simg.data[p2 * 4 + 2] * gain[2]);
+      }
+      sctx.putImageData(simg, 0, 0);
+
+      var objMap = new Uint8Array(SW * SH);
+      var wX0 = Math.round(wa.x0 * PX_PER_MM), wX1 = Math.round(wa.x1 * PX_PER_MM);
+      var wY0 = Math.round(wa.y0 * PX_PER_MM), wY1 = Math.round(wa.y1 * PX_PER_MM);
+      for (var yObj = wY0; yObj < wY1; yObj++) {
+        for (var xObj = wX0; xObj < wX1; xObj++) {
+          var o = (yObj * SW + xObj) * 4;
+          var r = simg.data[o], g = simg.data[o + 1], b = simg.data[o + 2];
+          if (255 - r > 40 || 255 - g > 40 || 255 - b > 40) {
+            objMap[yObj * SW + xObj] = 1;
+          }
+        }
+      }
+
+      var labels = new Int32Array(SW * SH), stack = [];
+      var maxCompArea = 0, bestCompId = 0;
+      var currentLabel = 1;
+      var comps = {};
+      for (var cy = wY0; cy < wY1; cy++) {
+        for (var cx = wX0; cx < wX1; cx++) {
+          var cidx = cy * SW + cx;
+          if (objMap[cidx] && !labels[cidx]) {
+            var area = 0;
+            var minX = cx, maxX = cx, minY = cy, maxY = cy;
+            stack.push(cidx);
+            labels[cidx] = currentLabel;
+            while (stack.length) {
+              var curr = stack.pop();
+              var px = curr % SW, py = (curr / SW) | 0;
+              area++;
+              if (px < minX) minX = px; if (px > maxX) maxX = px;
+              if (py < minY) minY = py; if (py > maxY) maxY = py;
+
+              for (var dy = -1; dy <= 1; dy++) {
+                for (var dx = -1; dx <= 1; dx++) {
+                  var nx = px + dx, ny = py + dy;
+                  if (nx >= wX0 && nx < wX1 && ny >= wY0 && ny < wY1) {
+                    var nq = ny * SW + nx;
+                    if (objMap[nq] && !labels[nq]) {
+                      labels[nq] = currentLabel;
+                      stack.push(nq);
+                    }
+                  }
+                }
+              }
+            }
+            comps[currentLabel] = { area: area, minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+            if (area > maxCompArea) { maxCompArea = area; bestCompId = currentLabel; }
+            currentLabel++;
+          }
+        }
+      }
+
+      if (maxCompArea < 50) {
+        reject(new Error('Не найден объект на коврике'));
+        return;
+      }
+
+      var pad = 15;
+      var obj = comps[bestCompId];
+      var cropX = Math.max(0, obj.minX - pad);
+      var cropY = Math.max(0, obj.minY - pad);
+      var cropW = Math.min(SW - cropX, obj.maxX - obj.minX + pad * 2);
+      var cropH = Math.min(SH - cropY, obj.maxY - obj.minY + pad * 2);
+
+      var tex = document.createElement('canvas');
+      tex.width = cropW; tex.height = cropH;
+      var tctx = tex.getContext('2d');
+      var texImg = sctx.getImageData(cropX, cropY, cropW, cropH);
+
+      for (var ti = 0; ti < cropW * cropH; ti++) {
+        var r = texImg.data[ti * 4], g = texImg.data[ti * 4 + 1], b = texImg.data[ti * 4 + 2];
+        var lum = r * 0.299 + g * 0.587 + b * 0.114;
+        var alpha = 255;
+        if (lum > 230) {
+          alpha = Math.max(0, 255 - (lum - 230) * 10);
+        }
+        texImg.data[ti * 4 + 3] = alpha;
+      }
+      tctx.putImageData(texImg, 0, 0);
+
+      var PV_W = 640, PV_H = Math.round(PV_W * cropH / cropW);
+      var pv = document.createElement('canvas');
+      pv.width = PV_W; pv.height = PV_H;
+      var pvctx = pv.getContext('2d');
+      pvctx.fillStyle = '#0a2233';
+      pvctx.fillRect(0, 0, PV_W, PV_H);
+      pvctx.drawImage(tex, 0, 0, PV_W, PV_H);
+
+      var boost = {
+        auto: 0,
+        value: 0,
+        texCanvas: tex,
+        pvCanvas: pv,
+        set: function(v){},
+        bake: function() { return { texture: tex.toDataURL('image/png'), preview: pv.toDataURL('image/png') }; }
+      };
+
+      resolve({
+        kind: 'cutout',
+        title: 'Вырезка',
+        titles: { ru: 'Вырезка', en: 'Cutout', pl: 'Cutout' },
+        texture: tex.toDataURL('image/png'),
+        preview: pv.toDataURL('image/png'),
+        boost: boost
+      });
+    });
+  }
+
+  window.FishCapture = { processPhoto: processPhoto, processMatPhoto: processMatPhoto };
 })();

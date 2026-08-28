@@ -409,21 +409,42 @@
     });
   }
 
+  function showResult(r) {
+    result = r;
+    var name = (r.titles && (r.titles[I18N.lang] || r.titles.ru)) || r.title;
+    document.getElementById('p-name').textContent =
+      I18N.t('cap.itis', { name: name });
+    document.getElementById('boost').value = Math.round(r.boost.auto * 100);
+    show('s-preview');
+    if (r.kind === 'cutout') {
+      // Плоская вырезка: показываем картинку вместо 3D-рыбы
+      document.getElementById('stage3d').style.display = 'none';
+      var flat = document.getElementById('p-img');
+      flat.hidden = false;
+      flat.src = r.preview;
+    } else {
+      document.getElementById('stage3d').style.display = '';
+      document.getElementById('p-img').hidden = true;
+      show3D(r.kind);
+    }
+  }
+
   window.handlePhoto = function (source) {   // отдельно — для автотестов
     show('s-busy');
-    return FishCapture.processPhoto(source, manifest).then(function (r) {
-      result = r;
-      document.getElementById('p-name').textContent =
-        I18N.t('cap.itis', { name: (r.titles && (r.titles[I18N.lang] || r.titles.ru)) || r.title });
-      // ползунок стартует с авто-положения: бледный рисунок уже подкручен
-      document.getElementById('boost').value = Math.round(r.boost.auto * 100);
-      show('s-preview');
-      show3D(r.kind);
+    // Сначала пробуем «умный коврик» (processMatPhoto)
+    return FishCapture.processMatPhoto(source, manifest).then(function (r) {
+      showResult(r);
       return r;
-    }, function (err) {
-      document.getElementById('err-text').textContent = String(err.message || err);
-      show('s-error');
-      throw err;
+    }, function () {
+      // Коврик не найден — пробуем обычную раскраску
+      return FishCapture.processPhoto(source, manifest).then(function (r) {
+        showResult(r);
+        return r;
+      }, function (err) {
+        document.getElementById('err-text').textContent = String(err.message || err);
+        show('s-error');
+        throw err;
+      });
     });
   };
 
