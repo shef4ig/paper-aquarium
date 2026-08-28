@@ -475,7 +475,7 @@
     document.body.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    new THREE.TextureLoader().load('/assets/backgrounds/01-0.png', function(tex) { scene.background = tex; fitBackground(); });
+    scene.background = new THREE.Color('#f0f4f8');
 
     // Лёгкая «толща воды»: чем дальше рыбка, тем сильнее уходит в синеву.
     // Фона тумана не касается — он рисуется отдельно, за сценой.
@@ -1112,13 +1112,21 @@
         side: THREE.DoubleSide
       });
       var mesh = new THREE.Mesh(geo, mat);
-      mesh.position.y = h / 2;
-      mesh.position.x = (Math.random() - 0.5) * 3;
-      mesh.position.z = (Math.random() - 0.5) * 2;
-      // Небольшой случайный поворот для естественности
-      mesh.rotation.y = (Math.random() - 0.5) * 0.6;
+      var phase = Math.random() * Math.PI * 2;
+      var cx = (Math.random() - 0.5) * 3;
+      var cz = (Math.random() - 0.5) * 2;
       scene.add(mesh);
-      var fakeFish = { mesh: mesh, update: function(){} };
+      var fakeFish = { 
+        mesh: mesh, 
+        update: function(dt, t) {
+          // Левитация и дрейф
+          mesh.position.y = h / 2 + Math.sin(t * 1.5 + phase) * 0.1;
+          mesh.position.x = cx + Math.sin(t * 0.5 + phase) * 0.5;
+          mesh.position.z = cz + Math.cos(t * 0.3 + phase) * 0.5;
+          // Всегда смотрим в камеру
+          mesh.quaternion.copy(camera.quaternion);
+        } 
+      };
       fishes.push(fakeFish);
       paintedCount++;
       cb(fakeFish);
@@ -1446,7 +1454,7 @@
     if (url === appliedBg) return;
     appliedBg = url;
     if (!url) {
-      new THREE.TextureLoader().load('/assets/backgrounds/01-0.png', function(tex) { scene.background = tex; fitBackground(); });
+      scene.background = new THREE.Color('#f0f4f8');
       return;
     }
     new THREE.TextureLoader().load(url, function (tex) {
