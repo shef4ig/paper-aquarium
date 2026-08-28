@@ -1271,7 +1271,7 @@
           return;
         }
 
-        if (!paintedSpec[paintedModel(item.kind)]) {
+        if (item.kind !== 'cutout' && !paintedSpec[paintedModel(item.kind)]) {
           console.warn('нет шаблона для вида ' + item.kind + ' — рыбка пропущена');
           return;
         }
