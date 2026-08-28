@@ -1095,55 +1095,55 @@
     return paintedTemplates[kind];
   }
 
-  function spawnPainted(kind, tex, cb) {\r
-    // Плоская вырезка (коврик): показываем как картонную фигурку\r
-    if (kind === 'cutout') {\r
-      tex.encoding = THREE.sRGBEncoding;\r
-      var aspect = tex.image ? (tex.image.width / tex.image.height) : 1;\r
-      var h = 1.5;\r
-      var w = h * aspect;\r
-      var geo = new THREE.PlaneGeometry(w, h);\r
-      var mat = new THREE.MeshBasicMaterial({\r
-        map: tex,\r
-        transparent: true,\r
-        alphaTest: 0.1,\r
-        side: THREE.DoubleSide\r
-      });\r
-      var mesh = new THREE.Mesh(geo, mat);\r
-      mesh.position.y = h / 2;\r
-      mesh.position.x = (Math.random() - 0.5) * 3;\r
-      mesh.position.z = (Math.random() - 0.5) * 2;\r
-      // Небольшой случайный поворот для естественности\r
-      mesh.rotation.y = (Math.random() - 0.5) * 0.6;\r
-      scene.add(mesh);\r
-      var fakeFish = { mesh: mesh, update: function(){} };\r
-      fishes.push(fakeFish);\r
-      paintedCount++;\r
-      cb(fakeFish);\r
-      return;\r
-    }\r
-    withPaintedTemplate(kind, function (tpl) {\r
-      if (!tpl) return cb(null);\r
-      tex.encoding = THREE.sRGBEncoding;\r
-      var base = tpl.base, len = paintedLen(kind);\r
-      var spec = {\r
-        name: 'painted-' + kind,\r
-        // Анимацию отдаём настоящую: у покупных моделей скелет и есть весь\r
-        // плавник. Планарная UV живёт в вершинах и от скиннинга не съезжает.\r
-        gltf: { scene: tpl.scene, animations: base.gltf.animations || [] },\r
-        info: base.info,\r
-        speed: 1.7, bend: 0,\r
-        // Модель шаблона потом домасштабируется до len, поэтому настоящая\r
-        // длина рыбки в сцене — именно она.\r
-        length: len,\r
-        paintedTex: tex\r
-      };\r
-      var fish = new Fish(spec, 0);\r
-      fish.mesh.scale.setScalar(len / base.length);\r
-      fishes.push(fish);\r
-      paintedCount++;\r
-      cb(fish);\r
-    });\r
+  function spawnPainted(kind, tex, cb) {
+    // Плоская вырезка (коврик): показываем как картонную фигурку
+    if (kind === 'cutout') {
+      tex.encoding = THREE.sRGBEncoding;
+      var aspect = tex.image ? (tex.image.width / tex.image.height) : 1;
+      var h = 1.5;
+      var w = h * aspect;
+      var geo = new THREE.PlaneGeometry(w, h);
+      var mat = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        alphaTest: 0.1,
+        side: THREE.DoubleSide
+      });
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.position.y = h / 2;
+      mesh.position.x = (Math.random() - 0.5) * 3;
+      mesh.position.z = (Math.random() - 0.5) * 2;
+      // Небольшой случайный поворот для естественности
+      mesh.rotation.y = (Math.random() - 0.5) * 0.6;
+      scene.add(mesh);
+      var fakeFish = { mesh: mesh, update: function(){} };
+      fishes.push(fakeFish);
+      paintedCount++;
+      cb(fakeFish);
+      return;
+    }
+    withPaintedTemplate(kind, function (tpl) {
+      if (!tpl) return cb(null);
+      tex.encoding = THREE.sRGBEncoding;
+      var base = tpl.base, len = paintedLen(kind);
+      var spec = {
+        name: 'painted-' + kind,
+        // Анимацию отдаём настоящую: у покупных моделей скелет и есть весь
+        // плавник. Планарная UV живёт в вершинах и от скиннинга не съезжает.
+        gltf: { scene: tpl.scene, animations: base.gltf.animations || [] },
+        info: base.info,
+        speed: 1.7, bend: 0,
+        // Модель шаблона потом домасштабируется до len, поэтому настоящая
+        // длина рыбки в сцене — именно она.
+        length: len,
+        paintedTex: tex
+      };
+      var fish = new Fish(spec, 0);
+      fish.mesh.scale.setScalar(len / base.length);
+      fishes.push(fish);
+      paintedCount++;
+      cb(fish);
+    });
   }
 
   function removePainted(id) {
