@@ -575,33 +575,31 @@
       }
       sctx.putImageData(simg, 0, 0);
 
-      // Ищем фон (белый цвет), начиная с краев рабочей зоны.
-      // Всё, что не фон — это наш объект (включая белые дырки внутри него).
+      // Ищем фон, начиная с краев рабочей зоны.
       var bgMap = new Uint8Array(SW * SH);
       var wX0 = Math.round(wa.x0 * PX_PER_MM), wX1 = Math.round(wa.x1 * PX_PER_MM);
       var wY0 = Math.round(wa.y0 * PX_PER_MM), wY1 = Math.round(wa.y1 * PX_PER_MM);
       
-      // Стек для flood-fill фона
       var stack = [];
       
-      // Закидываем периметр рабочей зоны в стек (если пиксель светлый)
-      function pushIfBg(x, y) {
+      function pushIfBg(x, y, force) {
         var idx = y * SW + x;
         if (!bgMap[idx]) {
           var o = idx * 4;
           var r = simg.data[o], g = simg.data[o + 1], b = simg.data[o + 2];
-          // Если цвет близок к белому (фон)
-          if (255 - r < 40 && 255 - g < 40 && 255 - b < 40) {
+          var lum = r * 0.299 + g * 0.587 + b * 0.114;
+          // Если force=true (края) ИЛИ пиксель светлее 150 (фон)
+          if (force || lum > 150) {
             bgMap[idx] = 1;
             stack.push(idx);
           }
         }
       }
 
-      for (var x = wX0; x < wX1; x++) { pushIfBg(x, wY0); pushIfBg(x, wY1 - 1); }
-      for (var y = wY0; y < wY1; y++) { pushIfBg(wX0, y); pushIfBg(wX1 - 1, y); }
+      // Гарантированно заливаем углы и периметр как фон
+      for (var x = wX0; x < wX1; x++) { pushIfBg(x, wY0, true); pushIfBg(x, wY1 - 1, true); }
+      for (var y = wY0; y < wY1; y++) { pushIfBg(wX0, y, true); pushIfBg(wX1 - 1, y, true); }
 
-      // Заливаем весь связанный светлый фон
       while (stack.length) {
         var curr = stack.pop();
         var px = curr % SW, py = (curr / SW) | 0;
@@ -609,13 +607,12 @@
           for (var dx = -1; dx <= 1; dx++) {
             var nx = px + dx, ny = py + dy;
             if (nx >= wX0 && nx < wX1 && ny >= wY0 && ny < wY1) {
-              pushIfBg(nx, ny);
+              pushIfBg(nx, ny, false);
             }
           }
         }
       }
 
-      // Находим Bounding Box объекта (всё, что НЕ bgMap)
       var minX = wX1, maxX = 0, minY = wY1, maxY = 0;
       var objPixels = 0;
       for (var cy = wY0; cy < wY1; cy++) {
