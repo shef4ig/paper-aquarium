@@ -575,83 +575,87 @@
       }
       sctx.putImageData(simg, 0, 0);
 
-      var objMap = new Uint8Array(SW * SH);
+      // Ищем фон (белый цвет), начиная с краев рабочей зоны.
+      // Всё, что не фон — это наш объект (включая белые дырки внутри него).
+      var bgMap = new Uint8Array(SW * SH);
       var wX0 = Math.round(wa.x0 * PX_PER_MM), wX1 = Math.round(wa.x1 * PX_PER_MM);
       var wY0 = Math.round(wa.y0 * PX_PER_MM), wY1 = Math.round(wa.y1 * PX_PER_MM);
-      for (var yObj = wY0; yObj < wY1; yObj++) {
-        for (var xObj = wX0; xObj < wX1; xObj++) {
-          var o = (yObj * SW + xObj) * 4;
+      
+      // Стек для flood-fill фона
+      var stack = [];
+      
+      // Закидываем периметр рабочей зоны в стек (если пиксель светлый)
+      function pushIfBg(x, y) {
+        var idx = y * SW + x;
+        if (!bgMap[idx]) {
+          var o = idx * 4;
           var r = simg.data[o], g = simg.data[o + 1], b = simg.data[o + 2];
-          if (255 - r > 40 || 255 - g > 40 || 255 - b > 40) {
-            objMap[yObj * SW + xObj] = 1;
+          // Если цвет близок к белому (фон)
+          if (255 - r < 40 && 255 - g < 40 && 255 - b < 40) {
+            bgMap[idx] = 1;
+            stack.push(idx);
           }
         }
       }
 
-      var labels = new Int32Array(SW * SH), stack = [];
-      var maxCompArea = 0, bestCompId = 0;
-      var currentLabel = 1;
-      var comps = {};
+      for (var x = wX0; x < wX1; x++) { pushIfBg(x, wY0); pushIfBg(x, wY1 - 1); }
+      for (var y = wY0; y < wY1; y++) { pushIfBg(wX0, y); pushIfBg(wX1 - 1, y); }
+
+      // Заливаем весь связанный светлый фон
+      while (stack.length) {
+        var curr = stack.pop();
+        var px = curr % SW, py = (curr / SW) | 0;
+        for (var dy = -1; dy <= 1; dy++) {
+          for (var dx = -1; dx <= 1; dx++) {
+            var nx = px + dx, ny = py + dy;
+            if (nx >= wX0 && nx < wX1 && ny >= wY0 && ny < wY1) {
+              pushIfBg(nx, ny);
+            }
+          }
+        }
+      }
+
+      // Находим Bounding Box объекта (всё, что НЕ bgMap)
+      var minX = wX1, maxX = 0, minY = wY1, maxY = 0;
+      var objPixels = 0;
       for (var cy = wY0; cy < wY1; cy++) {
         for (var cx = wX0; cx < wX1; cx++) {
-          var cidx = cy * SW + cx;
-          if (objMap[cidx] && !labels[cidx]) {
-            var area = 0;
-            var minX = cx, maxX = cx, minY = cy, maxY = cy;
-            stack.push(cidx);
-            labels[cidx] = currentLabel;
-            while (stack.length) {
-              var curr = stack.pop();
-              var px = curr % SW, py = (curr / SW) | 0;
-              area++;
-              if (px < minX) minX = px; if (px > maxX) maxX = px;
-              if (py < minY) minY = py; if (py > maxY) maxY = py;
-
-              for (var dy = -1; dy <= 1; dy++) {
-                for (var dx = -1; dx <= 1; dx++) {
-                  var nx = px + dx, ny = py + dy;
-                  if (nx >= wX0 && nx < wX1 && ny >= wY0 && ny < wY1) {
-                    var nq = ny * SW + nx;
-                    if (objMap[nq] && !labels[nq]) {
-                      labels[nq] = currentLabel;
-                      stack.push(nq);
-                    }
-                  }
-                }
-              }
-            }
-            comps[currentLabel] = { area: area, minX: minX, maxX: maxX, minY: minY, maxY: maxY };
-            if (area > maxCompArea) { maxCompArea = area; bestCompId = currentLabel; }
-            currentLabel++;
+          if (!bgMap[cy * SW + cx]) {
+            objPixels++;
+            if (cx < minX) minX = cx;
+            if (cx > maxX) maxX = cx;
+            if (cy < minY) minY = cy;
+            if (cy > maxY) maxY = cy;
           }
         }
       }
 
-      if (maxCompArea < 50) {
-        reject(new Error('Не найден объект на коврике'));
+      if (objPixels < 50 || minX > maxX) {
+        reject(new Error(window.I18N ? window.I18N.t('cap.err.nofish') : 'Не найден объект на коврике'));
         return;
       }
 
       var pad = 15;
-      var obj = comps[bestCompId];
-      var cropX = Math.max(0, obj.minX - pad);
-      var cropY = Math.max(0, obj.minY - pad);
-      var cropW = Math.min(SW - cropX, obj.maxX - obj.minX + pad * 2);
-      var cropH = Math.min(SH - cropY, obj.maxY - obj.minY + pad * 2);
+      var cropX = Math.max(0, minX - pad);
+      var cropY = Math.max(0, minY - pad);
+      var cropW = Math.min(SW - cropX, maxX - minX + pad * 2);
+      var cropH = Math.min(SH - cropY, maxY - minY + pad * 2);
 
       var tex = document.createElement('canvas');
       tex.width = cropW; tex.height = cropH;
       var tctx = tex.getContext('2d');
       var texImg = sctx.getImageData(cropX, cropY, cropW, cropH);
 
-      for (var ti = 0; ti < cropW * cropH; ti++) {
-        var r = texImg.data[ti * 4], g = texImg.data[ti * 4 + 1], b = texImg.data[ti * 4 + 2];
-        var lum = r * 0.299 + g * 0.587 + b * 0.114;
-        var alpha = 255;
-        if (lum > 230) {
-          alpha = Math.max(0, 255 - (lum - 230) * 10);
+      // Делаем фон полностью прозрачным, а объект оставляем непрозрачным
+      for (var ty = 0; ty < cropH; ty++) {
+        for (var tx = 0; tx < cropW; tx++) {
+          var origX = cropX + tx;
+          var origY = cropY + ty;
+          var isBg = bgMap[origY * SW + origX];
+          if (isBg) {
+            texImg.data[(ty * cropW + tx) * 4 + 3] = 0; // alpha = 0
+          }
         }
-        texImg.data[ti * 4 + 3] = alpha;
       }
       tctx.putImageData(texImg, 0, 0);
 
