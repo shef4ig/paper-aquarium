@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "rooms": [
+    {
+      "id": "bedroom",
+      "titles": {
+        "ru": "Спальня",
+        "en": "Bedroom",
+        "pl": "Sypialnia"
+      },
+      "background": "/assets/world/backgrounds/bedroom.png",
+      "salt": "ab1c01ee041c31b4310c2325127696b4",
+      "unlockHash": "2048a1bdb1256b41d2aadb09b6d12a537c4de65c224f75c6e28f886ce77a05bb"
+    },
+    {
+      "id": "kitchen",
+      "titles": {
+        "ru": "Кухня",
+        "en": "Kitchen",
+        "pl": "Kuchnia"
+      },
+      "background": "/assets/world/backgrounds/kitchen.png",
+      "salt": "1cee1df398792054380637dc1145cc4f",
+      "unlockHash": "5e5d0fd64273632a941437f494aac4644b5c868694eb381a9a84be25e6561538"
+    }
+  ]
+}

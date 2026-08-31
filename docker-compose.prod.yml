@@ -1,54 +1,38 @@
-# Аквариум за Traefik: сервер отдаёт страницы по HTTP внутри докер-сети,
-# наружу торчит только прокси — он же держит HTTPS и сертификат. Своего
-# прокси у аквариума нет намеренно: 80 и 443 на сервере уже заняты Traefik,
-# и второй туда не встанет.
+# «Бумажный мир» за Traefik — самостоятельная копия аквариума на своём
+# поддомене. Общего рантайма с аквариумом нет: свой контейнер, свой том data/.
 #
 # Что нужно рядом с этим файлом:
-#   .env    — DOMAIN=aquarium.mrmot9i.com
-#   pack/   — собранный пак моделей (в репозиторий он не входит)
-#   data/   — аквариумы; создаётся сам, но владельца проставить надо (uid 1000)
+#   .env    — DOMAIN=world.fantasy-games.ru
+#   data/   — комнаты; создаётся сам, владельца проставить надо (uid 1000)
 #
-# Сеть web общая и живёт отдельно от этого файла — её держит Traefik.
-# Проверить, что она на месте: docker network ls | grep web
+# Сеть web общая и живёт отдельно (её держит Traefik).
 
 services:
-  aqua:
+  world:
     build: .
-    image: aqua:latest
-    container_name: aqua
+    image: paper-world:latest
+    container_name: paper-world
     restart: unless-stopped
     environment:
-      # Пределы на случай, когда ссылку узнал кто-то лишний. Подробности —
-      # в LIMITS в server.js.
-      AQUA_MAX_TANKS: ${AQUA_MAX_TANKS:-200}
-      AQUA_TANKS_PER_HOUR: ${AQUA_TANKS_PER_HOUR:-5}
-      AQUA_MAX_FISH: ${AQUA_MAX_FISH:-40}
-      AQUA_MAX_BG: ${AQUA_MAX_BG:-8}
-      AQUA_MAX_DATA_MB: ${AQUA_MAX_DATA_MB:-2048}
-      # Аквариум-витрина: главная показывает новичкам кнопку «Посмотреть
-      # живой аквариум». Пусто — кнопки нет.
-      AQUA_DEMO_TANK: ${AQUA_DEMO_TANK:-}
+      WORLD_MAX_DOLLS: ${WORLD_MAX_DOLLS:-30}
+      WORLD_MAX_DECOR: ${WORLD_MAX_DECOR:-40}
+      WORLD_MAX_DATA_MB: ${WORLD_MAX_DATA_MB:-1024}
     volumes:
-      # Аквариумы переживают пересборку образа. Обычная папка, а не том:
-      # внутри детские рисунки, и бэкап их архивом проще, чем через docker.
+      # Комнаты (расстановка, снимки) переживают пересборку образа.
       - ./data:/app/data
-      # Купленный пак: лежит на сервере, в git его нет. Только чтение.
-      - ./pack:/app/assets/models/pack:ro
     expose:
-      - "8000"
+      - "8100"
     networks:
       - web
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"
-      - "traefik.http.routers.aqua.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.aqua.entrypoints=websecure"
-      - "traefik.http.routers.aqua.tls.certresolver=letsencrypt"
-      - "traefik.http.services.aqua.loadbalancer.server.port=8000"
-      # Сцена тянет three.js и модели рыб — сжатие заметно ускоряет первую
-      # загрузку. Картинки Traefik не жмёт: они и так сжаты.
-      - "traefik.http.middlewares.aqua-compress.compress=true"
-      - "traefik.http.routers.aqua.middlewares=aqua-compress"
+      - "traefik.http.routers.world.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.world.entrypoints=websecure"
+      - "traefik.http.routers.world.tls.certresolver=letsencrypt"
+      - "traefik.http.services.world.loadbalancer.server.port=8100"
+      - "traefik.http.middlewares.world-compress.compress=true"
+      - "traefik.http.routers.world.middlewares=world-compress"
 
 networks:
   web:

@@ -1,0 +1,333 @@
+{
+  "version": 1,
+  "recognition": {
+    "baseConfidence": 0.5,
+    "garmentConfidence": 0.5
+  },
+  "bases": [
+    {
+      "id": "bedroom-char1",
+      "room": "bedroom",
+      "titles": {
+        "ru": "Персонаж 1",
+        "en": "Character 1",
+        "pl": "Postać 1"
+      },
+      "sprite": "/assets/world/sprites/bedroom/bedroom-char1.png",
+      "thumb": "/assets/world/sprites/bedroom/bedroom-char1.png",
+      "size": {
+        "w": 262,
+        "h": 460
+      },
+      "anchors": {
+        "head": {
+          "x": 131,
+          "y": 55
+        },
+        "body": {
+          "x": 131,
+          "y": 230
+        },
+        "feet": {
+          "x": 131,
+          "y": 414
+        }
+      },
+      "recognition": {
+        "aspect": 0.57
+      }
+    },
+    {
+      "id": "bedroom-char2",
+      "room": "bedroom",
+      "titles": {
+        "ru": "Персонаж 2",
+        "en": "Character 2",
+        "pl": "Postać 2"
+      },
+      "sprite": "/assets/world/sprites/bedroom/bedroom-char2.png",
+      "thumb": "/assets/world/sprites/bedroom/bedroom-char2.png",
+      "size": {
+        "w": 262,
+        "h": 460
+      },
+      "anchors": {
+        "head": {
+          "x": 131,
+          "y": 55
+        },
+        "body": {
+          "x": 131,
+          "y": 230
+        },
+        "feet": {
+          "x": 131,
+          "y": 414
+        }
+      },
+      "recognition": {
+        "aspect": 0.57
+      }
+    },
+    {
+      "id": "bedroom-char3",
+      "room": "bedroom",
+      "titles": {
+        "ru": "Персонаж 3",
+        "en": "Character 3",
+        "pl": "Postać 3"
+      },
+      "sprite": "/assets/world/sprites/bedroom/bedroom-char3.png",
+      "thumb": "/assets/world/sprites/bedroom/bedroom-char3.png",
+      "size": {
+        "w": 262,
+        "h": 460
+      },
+      "anchors": {
+        "head": {
+          "x": 131,
+          "y": 55
+        },
+        "body": {
+          "x": 131,
+          "y": 230
+        },
+        "feet": {
+          "x": 131,
+          "y": 414
+        }
+      },
+      "recognition": {
+        "aspect": 0.57
+      }
+    },
+    {
+      "id": "kitchen-char1",
+      "room": "kitchen",
+      "titles": {
+        "ru": "Персонаж 1",
+        "en": "Character 1",
+        "pl": "Postać 1"
+      },
+      "sprite": "/assets/world/sprites/kitchen/kitchen-char1.png",
+      "thumb": "/assets/world/sprites/kitchen/kitchen-char1.png",
+      "size": {
+        "w": 289,
+        "h": 458
+      },
+      "anchors": {
+        "head": {
+          "x": 145,
+          "y": 55
+        },
+        "body": {
+          "x": 145,
+          "y": 229
+        },
+        "feet": {
+          "x": 145,
+          "y": 412
+        }
+      },
+      "recognition": {
+        "aspect": 0.631
+      }
+    },
+    {
+      "id": "kitchen-char2",
+      "room": "kitchen",
+      "titles": {
+        "ru": "Персонаж 2",
+        "en": "Character 2",
+        "pl": "Postać 2"
+      },
+      "sprite": "/assets/world/sprites/kitchen/kitchen-char2.png",
+      "thumb": "/assets/world/sprites/kitchen/kitchen-char2.png",
+      "size": {
+        "w": 287,
+        "h": 469
+      },
+      "anchors": {
+        "head": {
+          "x": 144,
+          "y": 56
+        },
+        "body": {
+          "x": 144,
+          "y": 235
+        },
+        "feet": {
+          "x": 144,
+          "y": 422
+        }
+      },
+      "recognition": {
+        "aspect": 0.612
+      }
+    },
+    {
+      "id": "kitchen-char3",
+      "room": "kitchen",
+      "titles": {
+        "ru": "Персонаж 3",
+        "en": "Character 3",
+        "pl": "Postać 3"
+      },
+      "sprite": "/assets/world/sprites/kitchen/kitchen-char3.png",
+      "thumb": "/assets/world/sprites/kitchen/kitchen-char3.png",
+      "size": {
+        "w": 280,
+        "h": 472
+      },
+      "anchors": {
+        "head": {
+          "x": 140,
+          "y": 57
+        },
+        "body": {
+          "x": 140,
+          "y": 236
+        },
+        "feet": {
+          "x": 140,
+          "y": 425
+        }
+      },
+      "recognition": {
+        "aspect": 0.593
+      }
+    }
+  ],
+  "garments": [
+    {
+      "id": "bedroom-garment1",
+      "baseId": "bedroom-char1",
+      "anchor": "head",
+      "titles": {
+        "ru": "Наряд 1",
+        "en": "Outfit 1",
+        "pl": "Strój 1"
+      },
+      "sprite": "/assets/world/sprites/bedroom/bedroom-garment1.png",
+      "thumb": "/assets/world/sprites/bedroom/bedroom-garment1.png",
+      "size": {
+        "w": 293,
+        "h": 251
+      },
+      "recognition": {}
+    },
+    {
+      "id": "bedroom-garment2",
+      "baseId": "bedroom-char1",
+      "anchor": "feet",
+      "titles": {
+        "ru": "Наряд 2",
+        "en": "Outfit 2",
+        "pl": "Strój 2"
+      },
+      "sprite": "/assets/world/sprites/bedroom/bedroom-garment2.png",
+      "thumb": "/assets/world/sprites/bedroom/bedroom-garment2.png",
+      "size": {
+        "w": 218,
+        "h": 178
+      },
+      "recognition": {}
+    },
+    {
+      "id": "bedroom-garment3",
+      "baseId": "bedroom-char1",
+      "anchor": "body",
+      "titles": {
+        "ru": "Наряд 3",
+        "en": "Outfit 3",
+        "pl": "Strój 3"
+      },
+      "sprite": "/assets/world/sprites/bedroom/bedroom-garment3.png",
+      "thumb": "/assets/world/sprites/bedroom/bedroom-garment3.png",
+      "size": {
+        "w": 256,
+        "h": 280
+      },
+      "recognition": {}
+    },
+    {
+      "id": "bedroom-garment4",
+      "baseId": "bedroom-char1",
+      "anchor": "head",
+      "titles": {
+        "ru": "Наряд 4",
+        "en": "Outfit 4",
+        "pl": "Strój 4"
+      },
+      "sprite": "/assets/world/sprites/bedroom/bedroom-garment4.png",
+      "thumb": "/assets/world/sprites/bedroom/bedroom-garment4.png",
+      "size": {
+        "w": 295,
+        "h": 236
+      },
+      "recognition": {}
+    }
+  ],
+  "decor": [
+    {
+      "id": "bedroom-decor1",
+      "room": "bedroom",
+      "titles": {
+        "ru": "Предмет 1",
+        "en": "Item 1",
+        "pl": "Przedmiot 1"
+      },
+      "sprite": "/assets/world/sprites/decor/bedroom-decor1.png",
+      "thumb": "/assets/world/sprites/decor/bedroom-decor1.png",
+      "size": {
+        "w": 298,
+        "h": 268
+      }
+    },
+    {
+      "id": "bedroom-decor2",
+      "room": "bedroom",
+      "titles": {
+        "ru": "Предмет 2",
+        "en": "Item 2",
+        "pl": "Przedmiot 2"
+      },
+      "sprite": "/assets/world/sprites/decor/bedroom-decor2.png",
+      "thumb": "/assets/world/sprites/decor/bedroom-decor2.png",
+      "size": {
+        "w": 272,
+        "h": 242
+      }
+    },
+    {
+      "id": "bedroom-decor3",
+      "room": "bedroom",
+      "titles": {
+        "ru": "Предмет 3",
+        "en": "Item 3",
+        "pl": "Przedmiot 3"
+      },
+      "sprite": "/assets/world/sprites/decor/bedroom-decor3.png",
+      "thumb": "/assets/world/sprites/decor/bedroom-decor3.png",
+      "size": {
+        "w": 236,
+        "h": 223
+      }
+    },
+    {
+      "id": "bedroom-decor4",
+      "room": "bedroom",
+      "titles": {
+        "ru": "Предмет 4",
+        "en": "Item 4",
+        "pl": "Przedmiot 4"
+      },
+      "sprite": "/assets/world/sprites/decor/bedroom-decor4.png",
+      "thumb": "/assets/world/sprites/decor/bedroom-decor4.png",
+      "size": {
+        "w": 325,
+        "h": 223
+      }
+    }
+  ]
+}

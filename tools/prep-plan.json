@@ -1,0 +1,74 @@
+{
+  "recognition": { "baseConfidence": 0.55, "garmentConfidence": 0.5 },
+  "rooms": [
+    {
+      "id": "bedroom",
+      "titles": { "ru": "Спальня", "en": "Bedroom", "pl": "Sypialnia" },
+      "background": "/assets/world/backgrounds/bedroom.svg",
+      "salt": "691a35d74444581d685921750792fe2c",
+      "unlockHash": "160115d2e928817f7f410bd410d8a9cff5ee2c318f07e66d9f83530e6f8b9a80"
+    },
+    {
+      "id": "kitchen",
+      "titles": { "ru": "Кухня", "en": "Kitchen", "pl": "Kuchnia" },
+      "background": "/assets/world/backgrounds/kitchen.svg",
+      "salt": "3f16d2798ed4fbdffc65b745c7f9e893",
+      "unlockHash": "15f9bb8c065387ab12b48176a415208d835d949d3ebe205289043d928754c11d"
+    }
+  ],
+  "bases": [
+    {
+      "id": "girl", "room": "bedroom",
+      "titles": { "ru": "Девочка", "en": "Girl", "pl": "Dziewczynka" },
+      "sprite": "/assets/world/sprites/girl/base.svg",
+      "size": { "w": 300, "h": 560 },
+      "anchors": { "head": { "x": 150, "y": 70 }, "body": { "x": 150, "y": 300 }, "feet": { "x": 150, "y": 520 } },
+      "recognition": { "aspect": 0.54 }
+    },
+    {
+      "id": "boy", "room": "kitchen",
+      "titles": { "ru": "Мальчик", "en": "Boy", "pl": "Chłopiec" },
+      "sprite": "/assets/world/sprites/boy/base.svg",
+      "size": { "w": 300, "h": 560 },
+      "anchors": { "head": { "x": 150, "y": 70 }, "body": { "x": 150, "y": 300 }, "feet": { "x": 150, "y": 520 } },
+      "recognition": { "aspect": 0.54 }
+    }
+  ],
+  "garments": [
+    {
+      "id": "girl-red-dress", "baseId": "girl", "anchor": "body",
+      "titles": { "ru": "Красное платье", "en": "Red dress", "pl": "Czerwona sukienka" },
+      "sprite": "/assets/world/sprites/girl/red-dress.svg",
+      "recognition": { "dominantHue": 0, "coverage": 0.4 }
+    },
+    {
+      "id": "girl-hat", "baseId": "girl", "anchor": "head",
+      "titles": { "ru": "Шляпка", "en": "Hat", "pl": "Kapelusz" },
+      "sprite": "/assets/world/sprites/girl/hat.svg",
+      "recognition": { "dominantHue": 210, "coverage": 0.15 }
+    },
+    {
+      "id": "boy-blue-shirt", "baseId": "boy", "anchor": "body",
+      "titles": { "ru": "Синяя рубашка", "en": "Blue shirt", "pl": "Niebieska koszula" },
+      "sprite": "/assets/world/sprites/boy/blue-shirt.svg",
+      "recognition": { "dominantHue": 210, "coverage": 0.4 }
+    }
+  ],
+  "decor": [
+    {
+      "id": "bed", "room": "bedroom",
+      "titles": { "ru": "Кровать", "en": "Bed", "pl": "Łóżko" },
+      "sprite": "/assets/world/sprites/decor/bed.svg", "size": { "w": 420, "h": 240 }
+    },
+    {
+      "id": "lamp", "room": "bedroom",
+      "titles": { "ru": "Лампа", "en": "Lamp", "pl": "Lampa" },
+      "sprite": "/assets/world/sprites/decor/lamp.svg", "size": { "w": 120, "h": 260 }
+    },
+    {
+      "id": "table", "room": "kitchen",
+      "titles": { "ru": "Стол", "en": "Table", "pl": "Stół" },
+      "sprite": "/assets/world/sprites/decor/table.svg", "size": { "w": 400, "h": 220 }
+    }
+  ]
+}

@@ -31,33 +31,13 @@ canvas { display: block; }
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
 
-.hud h1 {
-  margin: 0 0 2px;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-}
-
-.hud .sub {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
+.hud h1 { margin: 0 0 2px; font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+.hud .sub { margin: 0; font-size: 12px; color: var(--muted); }
 
 .panel-tl { top: 18px; left: 18px; max-width: 300px; }
 .panel-bl { bottom: 18px; left: 18px; }
 .panel-br { bottom: 18px; right: 18px; }
 .panel-tr { top: 18px; right: 18px; }
-
-.stats {
-  margin: 12px 0 0;
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 4px 18px;
-  font-size: 12px;
-}
-.stats dt { color: var(--muted); }
-.stats dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
 
 .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -124,8 +104,3 @@ button.b[aria-pressed="true"] { background: var(--accent); border-color: var(--a
   color: var(--muted);
 }
 .err b { color: var(--ink); display: block; margin-bottom: 8px; font-size: 16px; }
-
-/* preview mode: iframe thumbnails on the hub page */
-body.preview .hud,
-body.preview .back,
-body.preview .hint { display: none !important; }

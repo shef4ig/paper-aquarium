@@ -1,15 +1,14 @@
 {
-  "name": "paper-aquarium",
+  "name": "paper-world",
   "version": "1.0.0",
-  "description": "Paper Aquarium: a child colours a printed sheet, photographs it — and the fish swims in a 3D scene",
+  "description": "Paper World: a child unlocks a room by QR, fills it with paper-doll characters and decor",
   "license": "MIT",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "coloring": "node tools/make-coloring.js",
-    "pdf": "node tools/make-pdf.js"
+    "test": "node tools/test-doll-capture.js"
   },
   "engines": {
     "node": ">=18"

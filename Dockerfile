@@ -1,20 +1,18 @@
-# Зависимостей у сервера нет, ставить нечего — образ это просто node и код.
+# Зависимостей у сервера нет — образ это просто node и код мира.
 FROM node:22-alpine
 
 WORKDIR /app
 COPY . .
 
-# Аквариумы пишутся в /app/data — том монтируется снаружи, владелец должен
+# Комнаты пишутся в /app/data — том монтируется снаружи, владелец должен
 # совпадать с пользователем контейнера (uid 1000), иначе запись не пройдёт.
 RUN mkdir -p data && chown -R node:node /app
 USER node
 
-ENV PORT=8000
-EXPOSE 8000
+ENV PORT=8100
+EXPOSE 8100
 
-# Healthcheck дёргает главную: сервер без зависимостей, падать ему негде,
-# но перезапуск при зависшем процессе лишним не бывает.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:8000/ >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:8100/ >/dev/null || exit 1
 
 CMD ["node", "server.js"]

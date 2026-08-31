@@ -3,15 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title data-t="home.title">Мои аквариумы</title>
+<title data-t="home.title">Бумажный мир</title>
 <style>
   :root {
-    --ink: #eaf6ff;
-    --muted: #8aa6bd;
-    --dim: #5f7c94;
-    --card: rgba(9, 24, 40, 0.72);
-    --line: rgba(140, 200, 255, 0.16);
-    --accent: #58d6ff;
+    --ink: #eaf6ff; --muted: #8aa6bd; --dim: #5f7c94;
+    --card: rgba(9, 24, 40, 0.72); --line: rgba(140, 200, 255, 0.16); --accent: #58d6ff;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -25,157 +21,12 @@
     color: var(--ink);
     font: 15px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif;
   }
-  body::before {
-    content: "";
-    position: fixed; inset: 0; pointer-events: none;
-    background: repeating-linear-gradient(
-      100deg, transparent 0 60px,
-      rgba(140, 220, 255, 0.035) 60px 90px,
-      transparent 90px 190px);
-    mask-image: linear-gradient(180deg, #000 0%, transparent 70%);
-    -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 70%);
-    animation: drift 22s ease-in-out infinite alternate;
-  }
-  @keyframes drift { from { transform: translateX(-30px); } to { transform: translateX(30px); } }
-
-  .wrap { max-width: 980px; margin: 0 auto; padding: 64px 24px 80px; position: relative; }
-
-  .head {
-    display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;
-    margin-bottom: 36px;
-  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 64px 24px 80px; }
+  .head { display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap; margin-bottom: 36px; }
   header { flex: 1 1 340px; }
-
-  /* Инструкция-разворот: свёрнутая — тихая строка, раскрытая — четыре шага
-     и витрина. Новичку открыта сама, остальным не мешает. */
-  .how {
-    margin: 0 0 32px;
-    border: 1px solid var(--line); border-radius: 14px;
-  }
-  .how summary {
-    list-style: none; cursor: pointer; user-select: none;
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 18px; font-size: 14px; color: var(--muted);
-    transition: color .15s;
-  }
-  .how summary::-webkit-details-marker { display: none; }
-  .how summary:hover { color: var(--ink); }
-  .how .chev { font-size: 11px; transition: transform .15s; }
-  .how[open] .chev { transform: rotate(90deg); }
-  .how .howbody { padding: 4px 18px 18px; }
-  .hsteps {
-    list-style: none; counter-reset: step; margin: 0 0 14px; padding: 0;
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-  .hsteps li {
-    counter-increment: step; position: relative;
-    display: flex; flex-direction: column; gap: 8px;
-    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-    padding: 14px 16px 15px; font-size: 14px;
-  }
-  .hsteps li::before {
-    content: counter(step);
-    position: absolute; top: 10px; right: 13px;
-    font-size: 12px; color: var(--dim);
-  }
-  .hsteps .ico { font-size: 24px; line-height: 1; }
-  .how .demo { max-width: 340px; }
-  h1 { margin: 0 0 12px; font-size: clamp(30px, 5vw, 48px); line-height: 1.05; font-weight: 650; letter-spacing: -0.5px; }
-  header p { margin: 0; color: var(--muted); font-size: 16.5px; max-width: 620px; }
-
-  .tanks { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-bottom: 32px; }
-
-  .tank {
-    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
-    overflow: hidden; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    display: flex; flex-direction: column;
-    color: var(--ink); text-decoration: none;
-    transition: transform .2s cubic-bezier(.2,.7,.2,1), border-color .2s, box-shadow .2s;
-  }
-  /* display: flex сильнее браузерного [hidden]: без этого правила скрытая
-     карточка витрины (демо не настроено) всё равно торчала бы пустой рамкой. */
-  .tank[hidden] { display: none; }
-  .tank:hover { transform: translateY(-3px); border-color: rgba(88,214,255,.45); box-shadow: 0 20px 54px rgba(0,20,40,.5); }
-
-  /* Окошко в аквариум. Снимок делает сама сцена, когда там что-то меняется;
-     пока его нет — показываем фон аквариума, он известен всегда. */
-  .tank .shot {
-    position: relative; aspect-ratio: 16 / 9; background: #0a1c2b;
-    display: block; overflow: hidden;
-  }
-  .tank .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .tank .shot .veil {
-    position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(180deg, transparent 45%, rgba(6,18,30,.85) 100%);
-  }
-  /* Заглушка, пока ни снимка, ни фона: аквариум пустой и ещё не открывался */
-  .tank .shot .none {
-    position: absolute; inset: 0; display: grid; place-content: center; gap: 6px;
-    color: var(--dim); font-size: 13px; text-align: center;
-  }
-  .tank .shot .none .big { font-size: 30px; line-height: 1; }
-  .tank .shot .fade { opacity: 0; transition: opacity .35s }
-  .tank .shot .fade.on { opacity: 1 }
-
-  .tank .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 3px; }
-  .tank h2 { margin: 0; font-size: 18px; font-weight: 620; letter-spacing: -.2px; }
-  .tank .meta { color: var(--muted); font-size: 13px; }
-  .tank .meta code {
-    color: var(--dim); font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 12px; letter-spacing: .5px;
-  }
-
-  /* Удаление — крестик в углу картинки, как у плиток фона в админке:
-     в ряду кнопок он занимал место и притягивал взгляд сильнее «Открыть».
-     Виден всегда, только приглушённо: на телефоне наведения нет, и всплывающий
-     по нему крестик стоил бы лишнего тапа — первый показывал бы кнопку,
-     и только второй открывал аквариум. */
-  .tank .kill {
-    position: absolute; top: 10px; right: 10px; z-index: 1;
-    width: 28px; height: 28px; border-radius: 50%; padding: 0;
-    border: 1px solid rgba(140,200,255,.25); background: rgba(4,16,28,.72);
-    color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer;
-    display: grid; place-content: center; opacity: .5;
-    backdrop-filter: blur(4px); transition: opacity .15s, background .15s, color .15s;
-  }
-  .tank:hover .kill, .tank .kill:focus-visible { opacity: 1 }
-  .tank .kill:hover { background: #4a1d24; color: #ff9aa6; border-color: #7a2b36 }
-
-  /* Кнопка-«таблетка» — «Открыть» у поля ввода кода. */
-  .btn {
-    appearance: none; cursor: pointer; font: inherit; font-size: 13.5px;
-    text-align: center; text-decoration: none; display: inline-block;
-    border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px;
-    background: rgba(88, 214, 255, .08); color: var(--ink);
-    transition: background .15s, border-color .15s, color .15s;
-  }
-  .btn:hover { background: rgba(88, 214, 255, .18); border-color: rgba(140, 200, 255, .45); }
-
-  .newtank {
-    border: 1.5px dashed var(--line); border-radius: 18px;
-    display: grid; place-content: center; gap: 6px; text-align: center;
-    color: var(--muted); cursor: pointer; background: transparent;
-    font: inherit; padding: 34px 20px; min-height: 200px;
-    transition: border-color .15s, color .15s;
-  }
-  .newtank:hover { border-color: var(--accent); color: var(--accent); }
-  .newtank .plus { font-size: 30px; line-height: 1; }
-
-  .empty { color: var(--muted); padding: 10px 0 26px; }
-
-  .bycode {
-    flex: 0 1 330px;
-    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
-    padding: 16px 18px;
-  }
-  /* На узком экране карточка съезжает под заголовок и стоит одна на строке:
-     330 px посреди пустой ширины выглядят обрезком, поэтому там она
-     растягивается во всю полосу — как карточки аквариумов под ней. */
-  @media (max-width: 760px) {
-    .bycode { flex-basis: 100%; }
-  }
-  .langrow { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
+  h1 { margin: 0 0 12px; font-size: clamp(30px, 5vw, 46px); line-height: 1.05; font-weight: 650; letter-spacing: -0.5px; }
+  header p { margin: 0; color: var(--muted); font-size: 16px; max-width: 620px; }
+  .langrow { display: flex; justify-content: flex-end; }
   .langpick { display: inline-flex; gap: 4px; }
   .langpick button {
     appearance: none; cursor: pointer; font: inherit; font-size: 11.5px; letter-spacing: .5px;
@@ -184,362 +35,109 @@
     transition: color .15s, background .15s, border-color .15s;
   }
   .langpick button:hover { color: var(--ink); }
-  .langpick button[aria-pressed="true"] {
-    color: var(--accent); border-color: var(--line); background: rgba(88,214,255,.08);
-  }
+  .langpick button[aria-pressed="true"] { color: var(--accent); border-color: var(--line); background: rgba(88,214,255,.08); }
 
-  .bycode h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
-  .bycode p { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; }
-  .bycode form { display: flex; gap: 10px; flex-wrap: wrap; }
-  .bycode input {
-    flex: 1; min-width: 150px; font: inherit; font-size: 13.5px;
-    letter-spacing: 2px; font-family: ui-monospace, Consolas, monospace;
-    background: rgba(4,16,28,.6); color: var(--ink);
-    border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px;
+  .rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+  .room {
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+    display: flex; flex-direction: column; color: var(--ink); text-decoration: none; cursor: pointer;
+    transition: transform .2s cubic-bezier(.2,.7,.2,1), border-color .2s, box-shadow .2s;
   }
-  .bycode input:focus { outline: none; border-color: var(--accent); }
-
-  footer { padding-top: 24px; border-top: 1px solid var(--line); color: var(--dim); font-size: 13px; }
-  footer a { color: var(--muted); }
-  footer code {
-    background: rgba(140,200,255,.08); border: 1px solid var(--line);
-    border-radius: 5px; padding: 2px 7px; color: var(--muted);
-    font-family: ui-monospace, Consolas, monospace; font-size: 12.5px;
+  .room:hover { transform: translateY(-3px); border-color: rgba(88,214,255,.45); box-shadow: 0 20px 54px rgba(0,20,40,.5); }
+  .room .shot { position: relative; aspect-ratio: 16 / 9; background: #0a1c2b; overflow: hidden; }
+  .room .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .room .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 3px; }
+  .room h2 { margin: 0; font-size: 18px; font-weight: 620; }
+  .room .meta { color: var(--muted); font-size: 13px; }
+  .room.locked { opacity: .78; }
+  .room.locked .shot { filter: grayscale(.55) brightness(.7); }
+  .room .lock {
+    position: absolute; top: 10px; right: 10px; z-index: 1;
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-content: center;
+    background: rgba(4,16,28,.75); border: 1px solid var(--line); font-size: 15px;
   }
+  footer { padding-top: 30px; margin-top: 32px; border-top: 1px solid var(--line); color: var(--dim); font-size: 13px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-
   <div class="head">
     <header>
-      <h1 data-t="home.title">Мои аквариумы</h1>
+      <h1 data-t="home.title">Бумажный мир</h1>
       <p data-t="home.lead"></p>
     </header>
-
-    <!-- Ввод кода стоит рядом с заголовком: с пином это первое действие
-         телевизора, и внизу страницы его искали дольше всего. -->
-    <div class="bycode">
-      <div class="langrow"><span id="lang"></span></div>
-      <h3 data-t="home.bycode.title"></h3>
-      <p data-t="home.bycode.hint"></p>
-      <form id="code-form">
-        <input id="code" data-t-ph="home.bycode.placeholder" autocomplete="off" spellcheck="false" maxlength="10">
-        <button class="btn" type="submit" data-t="home.bycode.open"></button>
-      </form>
-    </div>
+    <div class="langrow"><span id="lang"></span></div>
   </div>
 
-  <!-- Инструкция читается один раз, а места просит много, поэтому живёт
-       в развороте: новичку без аквариумов открыта сама, дальше — строка,
-       которую всегда можно раскрыть заново. -->
-  <details class="how" id="how">
-    <summary><span class="chev">▸</span><span data-t="home.how.title"></span></summary>
-    <div class="howbody">
-      <!-- Большой экран — вторым шагом: сначала настроить сцену, а потом
-           творить, и рыбка появится на телевизоре прямо на глазах. -->
-      <ol class="hsteps">
-        <li><span class="ico">🌊</span><span data-t="home.how.s0"></span></li>
-        <li><span class="ico">📺</span><span data-t="home.how.s4"></span></li>
-        <li><span class="ico">🖨️</span><span data-t="home.how.s1"></span></li>
-        <li><span class="ico">🖍️</span><span data-t="home.how.s2"></span></li>
-        <li><span class="ico">📷</span><span data-t="home.how.s3"></span></li>
-      </ol>
-      <!-- Витрина — карточка с живым кадром, а не таблетка: это главный путь
-           новичка к «вау», и бледной кнопкой он терялся даже рядом с пустым «+». -->
-      <a class="tank demo" id="demo" hidden>
-        <div class="shot"><div class="veil"></div></div>
-        <div class="body">
-          <h2 data-t="home.how.demo"></h2>
-          <div class="meta" data-t="home.how.demo.sub"></div>
-        </div>
-      </a>
-    </div>
-  </details>
+  <div class="rooms" id="rooms"></div>
 
-  <div class="empty" id="empty" data-t="home.empty" hidden></div>
-  <div class="tanks" id="tanks"></div>
-
-  <footer>
-    <p style="margin:0 0 8px"><a href="/terms.html" data-t="home.terms"></a></p>
-    <p style="margin:0"><b style="color:var(--ink)" data-t="home.footer.important"></b><span data-t="home.footer.text"></span></p>
-  </footer>
-
+  <footer><p style="margin:0" id="foot"></p></footer>
 </div>
 
 <script src="/assets/i18n.js"></script>
 <script src="/assets/modal.js"></script>
-<script src="/assets/tank.js"></script>
+<script src="/assets/room.js"></script>
 <script>
 (function () {
   'use strict';
 
-  var box = document.getElementById('tanks');
-  var empty = document.getElementById('empty');
-
+  var box = document.getElementById('rooms');
   I18N.mount(document.getElementById('lang'));
   document.title = I18N.t('home.title');
-  // Смена языка перерисовывает карточки: в них счётчик рыбок и подписи.
-  addEventListener('aqua:lang', function () { document.title = I18N.t('home.title'); render(); });
+  addEventListener('world:lang', function () { document.title = I18N.t('home.title'); render(); });
 
-  // Карточка целиком — ссылка в аквариум. Отдельных кнопок нет: «Открыть»
-  // дублировало нажатие на саму карточку, а управление живёт в меню
-  // аквариума, рядом с тем, чем управляют.
-  function card(meta) {
+  function title(r) {
+    return (r.titles && (r.titles[I18N.lang] || r.titles.ru)) || r.id;
+  }
+
+  function card(r) {
+    var open = Room.isUnlocked(r.id);
     var el = document.createElement('a');
-    el.className = 'tank';
-    el.href = '/t/' + meta.id;
-    el.innerHTML =
-      '<div class="shot">' +
-        '<div class="none"><span class="big">🫧</span><span>' + I18N.t('home.card.empty') + '</span></div>' +
-        '<div class="veil"></div>' +
-        '<button class="kill" title="' + I18N.t('home.card.kill') + '">✕</button>' +
-      '</div>' +
-      '<div class="body">' +
-        '<h2></h2>' +
-        '<div class="meta"></div>' +
-      '</div>';
+    el.className = 'room' + (open ? '' : ' locked');
+    if (open) el.href = '/r/' + r.id;
 
-    el.querySelector('h2').textContent = meta.name;
-    var m = el.querySelector('.meta');
-    m.textContent = fishWord(meta.fishCount) + ' · ';
-    var code = document.createElement('code');
-    code.textContent = meta.id;
-    m.appendChild(code);
-
-    var shot = el.querySelector('.shot');
-
-    // Снимок сцены, а если его ещё не делали — хотя бы фон аквариума.
-    // Появляется плавно: подстановка готовой картинки рывком выглядит дёшево.
-    var pic = meta.preview || meta.backgroundUrl;
-    if (pic) {
-      // Заглушку убираем совсем: она лежит поверх картинки и иначе
-      // просвечивала бы сквозь неё.
-      shot.querySelector('.none').remove();
+    var shot = document.createElement('div');
+    shot.className = 'shot';
+    if (r.background) {
       var img = document.createElement('img');
-      img.className = 'fade';
-      img.alt = '';
-      img.loading = 'lazy';
-      img.onload = function () { img.classList.add('on'); };
-      img.src = pic;
-      shot.insertBefore(img, shot.firstChild);
+      img.src = r.background; img.alt = ''; img.loading = 'lazy';
+      shot.appendChild(img);
     }
+    if (!open) {
+      var lock = document.createElement('div');
+      lock.className = 'lock'; lock.textContent = '🔒';
+      shot.appendChild(lock);
+    }
+    el.appendChild(shot);
 
-    el.querySelector('button.kill').onclick = function (e) {
-      e.preventDefault();      // крестик лежит внутри ссылки на аквариум
-      e.stopPropagation();
-      // Два разных действия за одним крестиком. Аквариум, открытый по коду,
-      // чужой: убрать его из своего списка человек вправе всегда, а удалить
-      // насовсем — только с паролем. Раньше было одно «Удалить», и чужой
-      // аквариум оставался в списке навсегда.
-      Modal.choose({
-        title: I18N.t('home.remove.title', { name: meta.name }),
-        text: I18N.t('home.remove.text', {
-          code: meta.id,
-          what: meta.fishCount ? fishWord(meta.fishCount) : I18N.t('home.remove.whatEmpty')
-        }),
-        image: pic,
-        caption: meta.name,
-        buttons: [
-          { label: I18N.t('home.remove.cancel'), value: null },
-          { label: I18N.t('home.remove.forget'), value: 'forget' },
-          { label: I18N.t('home.remove.delete'), value: 'delete', kind: 'danger' }
-        ]
-      }).then(function (what) {
-        if (!what) return;
-        if (what === 'forget') { Tank.forget(meta.id); render(); return; }
+    var body = document.createElement('div');
+    body.className = 'body';
+    var h = document.createElement('h2'); h.textContent = title(r);
+    var meta = document.createElement('div'); meta.className = 'meta';
+    meta.textContent = open ? I18N.t('home.open') : I18N.t('home.locked');
+    body.appendChild(h); body.appendChild(meta);
+    el.appendChild(body);
 
-        // Удаление — под паролем. Если его тут не знают (открыли по коду
-        // на чужом устройстве), спрашиваем и пробуем ещё раз.
-        var kill = function () {
-          return Tank.send('/api/t/' + meta.id, { method: 'DELETE', tank: meta.id });
-        };
-        kill().then(function (r) {
-          if (r.ok) return true;
-          if (r.status !== 401 && r.status !== 429) return false;
-          return Tank.askPass(meta.id, {
-            title: I18N.t('home.remove.pass.title', { name: meta.name }),
-            text: I18N.t('home.remove.pass.text')
-          }).then(function (got) {
-            return got ? kill().then(function (r2) { return r2.ok; }) : false;
-          });
-        }, function () { return false; })
-          .then(function (done) { if (done) { Tank.forget(meta.id); } render(); });
-      });
-    };
+    if (!open) {
+      el.onclick = function (e) {
+        e.preventDefault();
+        Modal.alert({ title: I18N.t('home.locked.title'), text: I18N.t('home.locked.text') });
+      };
+    }
     return el;
   }
 
-  function fishWord(n) {
-    return n ? I18N.plural(n, 'fish') : I18N.t('home.card.empty');
-  }
-
-  function newTankTile() {
-    var b = document.createElement('button');
-    b.className = 'newtank';
-    b.innerHTML = '<span class="plus">+</span><span>' + I18N.t('home.new') + '</span>';
-    b.onclick = function () {
-      Modal.prompt({
-        title: I18N.t('home.create.title'),
-        text: I18N.t('home.create.text'),
-        value: I18N.t('home.create.value'),
-        maxLength: 60,
-        confirmLabel: I18N.t('home.create.ok')
-      }).then(function (name) {
-        if (name === null) return;
-        b.disabled = true;
-        return fetch('/api/tanks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name })
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (meta) {
-            Tank.remember(meta.id);
-            // Пароль сервер показывает один раз. На этом устройстве он
-            // остаётся в браузере, так что переспрашивать его тут не будут —
-            // а вот на телефоне или у второго родителя без него не обойтись.
-            Tank.setPass(meta.id, meta.password);
-            return Modal.alert({
-              title: I18N.t('home.created.title'),
-              text: I18N.t('home.created.text'),
-              fields: [
-                { label: I18N.t('home.created.code'), value: meta.id },
-                { label: I18N.t('home.created.pass'), value: meta.password }
-              ],
-              okLabel: I18N.t('home.created.ok')
-            }).then(function () { location.href = '/t/' + meta.id; });
-          })
-          .catch(function () {
-            b.disabled = false;
-            Modal.alert({
-              title: I18N.t('home.create.fail.title'),
-              text: I18N.t('home.create.fail.text')
-            });
-          });
-      });
-    };
-    return b;
-  }
-
-  // Демо-аквариум: сервер отдаёт код, если хозяин настроил AQUA_DEMO_TANK.
-  // Это самый короткий путь к «вау»: живой аквариум до того, как человек
-  // хоть что-то завёл. Ссылка с ?demo — чтобы витрина не прописалась
-  // в списке своих.
-  var demoAsked = false;
-  var howTouched = false;
-  var HOW_KEY = 'aqua.howOpen';
-
-  // Свернул или развернул руками — запоминаем, чтобы инструкция не
-  // раскрывалась заново на каждой загрузке. Слушаем клик, а не toggle:
-  // toggle приходит и от программного открытия, и запомнил бы его тоже.
-  // Клик срабатывает до переключения, поэтому состояние читаем тактом позже.
-  document.querySelector('#how summary').addEventListener('click', function () {
-    var how = document.getElementById('how');
-    setTimeout(function () {
-      try { localStorage.setItem(HOW_KEY, how.open ? '1' : '0'); } catch (e) { /* приватный режим */ }
-    }, 0);
-  });
-
-  function askDemo() {
-    if (demoAsked) return;
-    demoAsked = true;
-    fetch('/api/demo')
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (!d || !Tank.isValidId(d.id)) return;
-        var a = document.getElementById('demo');
-        a.href = '/t/' + d.id + '?demo';
-        // Кадр витрины — как у карточек аквариумов: снимок сцены,
-        // а пока его нет — хотя бы фон.
-        return fetch('/api/t/' + d.id + '/meta')
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .catch(function () { return null; })
-          .then(function (meta) {
-            var pic = meta && (meta.preview || meta.backgroundUrl);
-            if (pic) {
-              var img = document.createElement('img');
-              img.className = 'fade';
-              img.alt = '';
-              img.loading = 'lazy';
-              img.onload = function () { img.classList.add('on'); };
-              img.src = pic;
-              var shot = a.querySelector('.shot');
-              shot.insertBefore(img, shot.firstChild);
-            }
-            a.hidden = false;
-          });
-      })
-      .catch(function () { /* демо не настроено — блок живёт без карточки */ });
-  }
-
   function render() {
-    var ids = Tank.known();
     box.textContent = '';
-    empty.hidden = ids.length > 0;
-
-    // Инструкция раскрыта только новичку — у кого есть свой аквариум, тот
-    // дорогу знает. Ручной выбор сильнее умолчания и переживает перезагрузку.
-    // Ставим один раз: перерисовка (смена языка, удаление) не должна
-    // захлопывать разворот, открытый руками.
-    if (!howTouched) {
-      howTouched = true;
-      var saved = null;
-      try { saved = localStorage.getItem(HOW_KEY); } catch (e) { /* приватный режим */ }
-      document.getElementById('how').open = saved !== null ? saved === '1' : ids.length === 0;
-    }
-    askDemo();
-
-    // Каждый аквариум спрашиваем отдельно: их немного, а батч-ручка ради
-    // десятка запросов не окупается.
-    Promise.all(ids.map(function (id) {
-      return fetch('/api/t/' + id + '/meta')
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .catch(function () { return null; });
-    })).then(function (metas) {
-      metas.forEach(function (meta, i) {
-        // Аквариума нет на сервере — тихо убираем из списка, чтобы призраки
-        // не копились после удалений с другого устройства.
-        if (!meta) { Tank.forget(ids[i]); return; }
-        box.appendChild(card(meta));
+    fetch('/api/rooms/catalog')
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (d) {
+        (d.rooms || []).forEach(function (r) { box.appendChild(card(r)); });
+      })
+      .catch(function () {
+        document.getElementById('foot').textContent = I18N.t('home.noserver');
       });
-      box.appendChild(newTankTile());
-      empty.hidden = box.children.length > 1;
-    });
   }
-
-  document.getElementById('code-form').onsubmit = function (e) {
-    e.preventDefault();
-    var v = document.getElementById('code').value.trim().toLowerCase().replace(/\s+/g, '');
-
-    // Пять цифр — временный код с телефона («Код для телевизора»),
-    // десять знаков — постоянный код аквариума. Форматы не пересекаются,
-    // поэтому поле одно на оба.
-    if (/^\d{5}$/.test(v)) {
-      fetch('/api/pin/' + v)
-        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-        // ?tv: по пину открывают экран-витрину (телевизор), меню там само
-        // не выскакивает — этим экраном любуются, а управляют с телефона.
-        .then(function (d) { location.href = '/t/' + d.id + '?tv'; })
-        .catch(function (status) {
-          var many = status === 429;
-          Modal.alert({
-            title: I18N.t(many ? 'home.pin.many.title' : 'home.pin.bad.title'),
-            text: I18N.t(many ? 'home.pin.many.text' : 'home.pin.bad.text')
-          });
-        });
-      return;
-    }
-
-    if (!Tank.isValidId(v)) {
-      Modal.alert({
-        title: I18N.t('home.badcode.title'),
-        text: I18N.t('home.badcode.text')
-      });
-      return;
-    }
-    location.href = '/t/' + v;
-  };
 
   render();
 })();

@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-t="home.title">Бумажный мир</title>
+<link rel="stylesheet" href="/assets/ui.css">
+<style>
+  body { background: #101018; }
+  .loading, .err { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; color: var(--muted); z-index: 30; padding: 32px; }
+  .loading[hidden], .err[hidden] { display: none; }
+  .err b { color: var(--ink); display: block; margin-bottom: 8px; font-size: 16px; }
+  .err a { color: var(--accent); }
+
+  .menu { position: fixed; inset: 0; z-index: 15; display: grid; place-items: center; padding: 16px;
+    background: rgba(2,10,18,.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  .menu[hidden] { display: none; }
+  .menu .card { position: relative; width: min(560px, 100%); max-height: 100%; overflow: auto;
+    background: rgba(6,22,38,.95); border: 1px solid var(--line); border-radius: 20px; padding: 20px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+  .menu h2 { margin: 0 0 14px; padding-right: 40px; font-size: 19px; font-weight: 600; }
+  .menu .x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    display: grid; place-content: center; font: inherit; font-size: 15px; cursor: pointer; color: var(--muted);
+    background: rgba(88,214,255,.08); border: 1px solid var(--line); }
+  .menu .x:hover { color: var(--ink); background: rgba(88,214,255,.2); }
+  .menu .item { display: flex; align-items: center; gap: 12px; width: 100%; margin-bottom: 8px; padding: 11px 14px;
+    font: inherit; text-align: left; cursor: pointer; color: var(--ink); background: rgba(88,214,255,.08);
+    border: 1px solid var(--line); border-radius: 14px; }
+  .menu .item:hover { background: rgba(88,214,255,.18); border-color: rgba(140,200,255,.45); }
+  .menu .item.main { background: var(--accent); border-color: var(--accent); color: #04101c; }
+  .menu .item .ico { flex: none; width: 26px; font-size: 21px; text-align: center; }
+  .menu .item b { display: block; font-size: 14px; font-weight: 600; }
+  .menu .item i { display: block; font-style: normal; font-size: 12px; opacity: .72; }
+  .menu .goback { display: block; margin: 0 0 12px; padding: 0; font: inherit; font-size: 13px; color: var(--muted);
+    background: none; border: 0; cursor: pointer; }
+  .menu .goback:hover { color: var(--accent); }
+
+  /* каталог */
+  .cat-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .cat-lead { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+  .cat-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px 10px;
+    font: inherit; cursor: pointer; color: var(--ink); background: rgba(88,214,255,.06);
+    border: 1px solid var(--line); border-radius: 12px; transition: border-color .15s, transform .1s; }
+  .cat-tile:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .cat-tile[aria-pressed="true"] { border-color: var(--accent); background: rgba(88,214,255,.2); }
+  .cat-tile img { width: 100%; aspect-ratio: 3/4; object-fit: contain; background: rgba(255,255,255,.06); border-radius: 8px; }
+  .cat-tile span { font-size: 11px; line-height: 1.2; text-align: center; color: var(--muted); }
+  .cat-add { margin-top: 14px; width: 100%; }
+  .cat-empty { color: var(--muted); }
+
+  /* съёмка */
+  .cap { text-align: center; }
+  .cap input[type=file] { display: none; }
+  .cap .shoot { display: inline-block; margin: 8px 0 12px; }
+  .cap .hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .cap .result { margin-top: 12px; }
+  .cap .result .chip { display: inline-block; margin: 4px; padding: 6px 12px; border-radius: 999px;
+    background: rgba(88,214,255,.12); border: 1px solid var(--line); font-size: 13px; }
+
+  .taphint { position: fixed; z-index: 6; left: 50%; bottom: 20px; transform: translateX(-50%);
+    padding: 8px 16px; font-size: 12px; white-space: nowrap; pointer-events: none; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .taphint[hidden] { display: none; }
+  .langrow { display: flex; justify-content: center; margin-top: 12px; }
+  .langpick { display: inline-flex; gap: 4px; }
+  .langpick button { appearance: none; cursor: pointer; font: inherit; font-size: 11.5px; letter-spacing: .5px;
+    padding: 4px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--muted); }
+  .langpick button[aria-pressed="true"] { color: var(--accent); border-color: var(--line); background: rgba(88,214,255,.1); }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading" data-t="room.loading"></div>
+<div class="err" id="err" hidden></div>
+
+<div class="menu" id="menu" hidden>
+  <div class="card">
+    <button class="x" id="m-close" type="button" data-t-title="menu.close" aria-label="close">✕</button>
+
+    <div id="menu-main">
+      <h2 id="m-title">Комната</h2>
+      <button class="item main" id="m-catalog" type="button">
+        <span class="ico">🧺</span><span><b data-t="menu.catalog.title"></b><i data-t="menu.catalog.sub"></i></span>
+      </button>
+      <button class="item" id="m-photo" type="button">
+        <span class="ico">📷</span><span><b data-t="menu.photo.title"></b><i data-t="menu.photo.sub"></i></span>
+      </button>
+      <a class="item" id="m-home" href="/">
+        <span class="ico">🏠</span><span><b data-t="menu.home.title"></b><i data-t="menu.home.sub"></i></span>
+      </a>
+      <div class="langrow"><span id="lang"></span></div>
+    </div>
+
+    <div id="menu-catalog" hidden>
+      <button class="goback" id="m-catback" type="button" data-t="menu.back"></button>
+      <div id="catalog"></div>
+    </div>
+
+    <div id="menu-photo" hidden>
+      <button class="goback" id="m-photoback" type="button" data-t="menu.back"></button>
+      <h2 data-t="photo.title"></h2>
+      <div class="cap">
+        <p class="hint" data-t="photo.hint"></p>
+        <label class="item main shoot" for="cap-file"><span class="ico">📷</span><span><b data-t="photo.shoot"></b></span></label>
+        <input type="file" id="cap-file" accept="image/*" capture="environment">
+        <div class="result" id="cap-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="taphint" id="taphint" data-t="room.menu.hint" hidden></div>
+
+<script src="/vendor/three.min.js"></script>
+<script src="/assets/i18n.js"></script>
+<script src="/assets/modal.js"></script>
+<script src="/assets/room.js"></script>
+<script src="/assets/room-scene.js"></script>
+<script src="/assets/catalog.js"></script>
+<script src="/assets/doll-capture.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var loading = document.getElementById('loading');
+  var errBox = document.getElementById('err');
+  var menu = document.getElementById('menu');
+
+  I18N.mount(document.getElementById('lang'));
+
+  function fail(html) {
+    loading.hidden = true;
+    errBox.hidden = false;
+    errBox.innerHTML = html;
+  }
+
+  if (!Room.id) {
+    fail('<b>' + I18N.t('room.notfound') + '</b><a href="/">' + I18N.t('room.tolist') + '</a>');
+    return;
+  }
+
+  // ?k=<token> из QR — пробуем открыть комнату.
+  var params = new URLSearchParams(location.search);
+  var token = params.get('k');
+
+  function ensureUnlocked() {
+    if (Room.isUnlocked(Room.id)) return Promise.resolve(true);
+    if (!token) return Promise.resolve(false);
+    return Room.unlock(Room.id, token).then(function (r) { return r.ok; });
+  }
+
+  var SET = null, roomMeta = null;
+
+  function boot() {
+    Promise.all([
+      fetch('/api/rooms/catalog').then(function (r) { return r.json(); }).catch(function () { return null; }),
+      fetch(Room.api + '/set').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+    ]).then(function (res) {
+      var catalog = res[0], set = res[1];
+      if (!set) { fail('<b>' + I18N.t('room.notfound') + '</b><a href="/">' + I18N.t('room.tolist') + '</a>'); return; }
+      SET = set;
+      roomMeta = catalog && (catalog.rooms || []).filter(function (x) { return x.id === Room.id; })[0];
+      var bg = roomMeta && roomMeta.background;
+      document.getElementById('m-title').textContent =
+        (roomMeta && roomMeta.titles && (roomMeta.titles[I18N.lang] || roomMeta.titles.ru)) || Room.id;
+
+      RoomScene.init(bg);
+      RoomScene.setSet(SET);
+      RoomScene.onChange(saveSoon);
+
+      fetch(Room.api + '/state').then(function (r) { return r.ok ? r.json() : { dolls: [], decor: [] }; })
+        .then(function (state) { RoomScene.load(state); })
+        .catch(function () {});
+
+      loading.hidden = true;
+      document.getElementById('taphint').hidden = false;
+    });
+  }
+
+  ensureUnlocked().then(function (ok) {
+    if (!ok) {
+      fail('<b>' + I18N.t('room.locked') + '</b><a href="/">' + I18N.t('room.tolist') + '</a>');
+      return;
+    }
+    boot();
+  });
+
+  // ── сохранение расстановки (дебаунс) ──
+  var saveTimer = null;
+  function saveSoon() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      var state = RoomScene.serialize();
+      Room.send(Room.api + '/state', { method: 'POST', body: JSON.stringify(state) })
+        .then(function () {
+          var shot = RoomScene.snapshot();
+          if (shot) Room.send(Room.api + '/preview', { method: 'POST', body: JSON.stringify({ image: shot }) });
+        }).catch(function () {});
+    }, 600);
+  }
+
+  // ── меню ──
+  var panes = ['menu-main', 'menu-catalog', 'menu-photo'];
+  function showPane(id) { panes.forEach(function (p) { document.getElementById(p).hidden = p !== id; }); }
+  function openMenu() { menu.hidden = false; showPane('menu-main'); document.getElementById('taphint').hidden = true; }
+  function closeMenu() { menu.hidden = true; }
+
+  document.addEventListener('click', function (e) {
+    if (menu.hidden && !errBox.hidden === false && loading.hidden && e.target.tagName === 'CANVAS') openMenu();
+  });
+  // клик по сцене (canvas) открывает меню
+  addEventListener('click', function (e) {
+    if (e.target && e.target.tagName === 'CANVAS' && menu.hidden) openMenu();
+  });
+
+  document.getElementById('m-close').onclick = closeMenu;
+  menu.onclick = function (e) { if (e.target === menu) closeMenu(); };
+
+  document.getElementById('m-catalog').onclick = function () {
+    showPane('menu-catalog');
+    Catalog.render(document.getElementById('catalog'), SET, {
+      onAddDoll: function (baseId, garments) { RoomScene.addDoll(baseId, garments); closeMenu(); },
+      onAddDecor: function (decorId) { RoomScene.addDecor(decorId); closeMenu(); }
+    });
+  };
+  document.getElementById('m-catback').onclick = function () { showPane('menu-main'); };
+
+  document.getElementById('m-photo').onclick = function () { showPane('menu-photo'); document.getElementById('cap-result').textContent = ''; };
+  document.getElementById('m-photoback').onclick = function () { showPane('menu-main'); };
+
+  // ── фото-сборка ──
+  document.getElementById('cap-file').onchange = function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    var result = document.getElementById('cap-result');
+    result.textContent = I18N.t('photo.searching');
+    var img = new Image();
+    img.onload = function () {
+      DollCapture.process(img, SET).then(function (res) {
+        buildFromRecognition(res, result);
+      }).catch(function () {
+        result.textContent = '';
+        Modal.alert({ title: I18N.t('photo.base.bad.title'), text: I18N.t('photo.base.bad.text') });
+      });
+    };
+    img.onerror = function () {
+      result.textContent = '';
+      Modal.alert({ title: I18N.t('photo.base.bad.title'), text: I18N.t('photo.err.photo') });
+    };
+    img.src = URL.createObjectURL(file);
+    e.target.value = '';
+  };
+
+  function baseTitle(id) {
+    var b = (SET.bases || []).filter(function (x) { return x.id === id; })[0];
+    return b ? ((b.titles && (b.titles[I18N.lang] || b.titles.ru)) || id) : id;
+  }
+  function garmentTitle(id) {
+    var g = (SET.garments || []).filter(function (x) { return x.id === id; })[0];
+    return g ? ((g.titles && (g.titles[I18N.lang] || g.titles.ru)) || id) : id;
+  }
+
+  function buildFromRecognition(res, result) {
+    // База не распознана уверенно → предложить переснять / выбрать вручную.
+    if (!res.confident) {
+      result.textContent = '';
+      Modal.choose({
+        title: I18N.t('photo.base.bad.title'),
+        text: I18N.t('photo.base.bad.text'),
+        buttons: [
+          { label: I18N.t('photo.retake'), value: 'retake' },
+          { label: I18N.t('photo.manual'), value: 'manual', kind: 'go' }
+        ]
+      }).then(function (what) {
+        if (what === 'manual') { document.getElementById('m-catalog').click(); }
+      });
+      return;
+    }
+    // Спорные слои (uncertain) не добавляем — собираем без них, не прерывая.
+    result.textContent = '';
+    var line = document.createElement('div');
+    var chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = baseTitle(res.baseId);
+    line.appendChild(chip);
+    res.garments.forEach(function (gid) {
+      var c = document.createElement('span'); c.className = 'chip'; c.textContent = '+ ' + garmentTitle(gid);
+      line.appendChild(c);
+    });
+    result.appendChild(line);
+
+    var add = document.createElement('button');
+    add.type = 'button'; add.className = 'b'; add.style.marginTop = '12px'; add.textContent = I18N.t('photo.add');
+    add.onclick = function () { RoomScene.addDoll(res.baseId, res.garments); closeMenu(); };
+    result.appendChild(add);
+  }
+})();
+</script>
+</body>
+</html>
